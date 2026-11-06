@@ -115,9 +115,9 @@
             color: #eab308 !important;
         }
 
-        /* Graph invert trick for dark mode */
+        /* Ensure canvas colors render true without filter distortion */
         canvas {
-            filter: invert(0.88) hue-rotate(180deg);
+            filter: none !important;
         }
     </style>
 </head>
@@ -453,16 +453,21 @@
                                 </div>
                             </div>
 
-                            <p class="text-xs text-slate-500 mb-3">Select a single habit to view its calendar history:
-                            </p>
-                            <div class="flex space-x-2 overflow-x-auto pb-3 mb-4">
-                                <button v-for="h in habits" :key="'cal_'+h.id" @click="calendarSelectedHabitId = h.id"
+                            <p class="text-xs text-slate-500 mb-3">Select a Yes/No habit to view and toggle its calendar
+                                history:</p>
+                            <div v-if="yesNoHabits.length === 0"
+                                class="text-xs text-slate-400 italic py-4 text-center border border-dashed border-slate-200 rounded-xl mb-4">
+                                No Yes/No habits available. Create a Yes/No habit to view its calendar grid.
+                            </div>
+                            <div v-else class="flex space-x-2 overflow-x-auto pb-3 mb-4">
+                                <button v-for="h in yesNoHabits" :key="'cal_'+h.id"
+                                    @click="calendarSelectedHabitId = h.id"
                                     :class="['px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap border', calendarSelectedHabitId === h.id ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50']">
                                     {{ h.name }}
                                 </button>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div v-if="yesNoHabits.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div v-for="month in calendarMonths" :key="month.name"
                                     class="p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
                                     <h4
@@ -470,10 +475,11 @@
                                         {{ month.name }}</h4>
                                     <div class="flex flex-wrap gap-1.5 justify-center">
                                         <div v-for="day in month.days" :key="day.dateStr"
-                                            :class="['w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-[10px] sm:text-[9px] font-bold transition-all', 
-                                                      day.isFuture ? 'opacity-10 bg-slate-200' : 
-                                                      day.completed ? 'bg-brand-500 text-black shadow-xs' : 'bg-slate-100 text-slate-400']"
-                                            :title="`${day.dateStr}${day.value ? ' - Value: ' + day.value : ''}`">
+                                            @click="toggleCalendarDay(day)"
+                                            :class="['w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-[10px] sm:text-[9px] font-bold transition-all select-none', 
+                                                      day.isFuture ? 'opacity-10 bg-slate-200 cursor-not-allowed' : 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-brand-500',
+                                                      day.completed ? ((selectedCalendarHabit && selectedCalendarHabit.isBadHabit) ? 'bg-red-600 text-white shadow-xs' : 'bg-brand-500 text-black shadow-xs') : 'bg-slate-100 text-slate-400']"
+                                            :title="`${day.dateStr}${!day.isFuture ? ' (Click to toggle)' : ''}`">
                                             {{ day.dayNum }}
                                         </div>
                                     </div>
@@ -725,10 +731,26 @@
                 const showEditHabitModal = ref(false);
                 const editHabitData = ref({ id: '', name: '', type: 'yesno', isBadHabit: false });
 
+                const yesNoHabits = computed(() => habits.value.filter(h => h.type === 'yesno'));
+
                 const graphSelectedHabitIds = ref([]);
                 const calendarSelectedHabitId = ref(null);
+                const selectedCalendarHabit = computed(() => {
+                    return yesNoHabits.value.find(h => h.id === calendarSelectedHabitId.value) || yesNoHabits.value[0] || null;
+                });
                 const graphTimeRange = ref('monthly');
                 const calendarOffset = ref(0);
+
+                // Auto-select first available Yes/No habit when list changes
+                watch(yesNoHabits, (newYesNo) => {
+                    if (newYesNo.length > 0) {
+                        if (!calendarSelectedHabitId.value || !newYesNo.some(h => h.id === calendarSelectedHabitId.value)) {
+                            calendarSelectedHabitId.value = newYesNo[0].id;
+                        }
+                    } else {
+                        calendarSelectedHabitId.value = null;
+                    }
+                }, { immediate: true });
 
                 const currentJournalText = ref('');
                 const journalSaved = ref(false);
@@ -814,6 +836,19 @@
                             if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
                             if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
                         }
+
+                        // Load all daily log documents from Firestore into memory for Analytics & Calendar Grid
+                        const logsRef = collection(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs');
+                        const logsSnap = await getDocs(logsRef);
+                        const allEntries = {};
+                        logsSnap.forEach(docSnap => {
+                            const data = docSnap.data();
+                            if (data && data.habits) {
+                                allEntries[docSnap.id] = data.habits;
+                            }
+                        });
+                        habitEntries.value = allEntries;
+
                         loadDayData();
                     } catch (e) {
                         console.error('Error loading cloud data:', e);
@@ -888,6 +923,23 @@
                         graphSelectedHabitIds.value = ['sleep'];
                         calendarSelectedHabitId.value = 'sleep';
                     }
+
+                    // Read all local daily entries into habitEntries
+                    const allEntries = {};
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('lifepulse_day_')) {
+                            const dateStr = key.replace('lifepulse_day_', '');
+                            try {
+                                const parsed = JSON.parse(localStorage.getItem(key));
+                                if (parsed && parsed.habits) {
+                                    allEntries[dateStr] = parsed.habits;
+                                }
+                            } catch (e) { }
+                        }
+                    }
+                    habitEntries.value = allEntries;
+
                     loadDayData();
                 };
 
@@ -1151,6 +1203,41 @@
                     calendarOffset.value = Math.max(0, calendarOffset.value + direction);
                 };
 
+                const toggleCalendarDay = async (day) => {
+                    if (!day || day.isFuture) return;
+                    const habitObj = selectedCalendarHabit.value;
+                    if (!habitObj || habitObj.type !== 'yesno') return;
+
+                    const targetDateStr = day.dateStr;
+                    const habitId = habitObj.id;
+
+                    if (!habitEntries.value[targetDateStr]) {
+                        habitEntries.value[targetDateStr] = {};
+                    }
+
+                    const currentVal = !!habitEntries.value[targetDateStr][habitId];
+                    const newVal = !currentVal;
+                    habitEntries.value[targetDateStr][habitId] = newVal;
+
+                    const dayData = {
+                        habits: habitEntries.value[targetDateStr] || {}
+                    };
+
+                    if (db && user.value && !user.value.isAnonymous) {
+                        try {
+                            const dayDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs', targetDateStr);
+                            await setDoc(dayDocRef, dayData, { merge: true });
+                        } catch (e) {
+                            console.error('Error saving calendar day data:', e);
+                            localStorage.setItem(`lifepulse_day_${targetDateStr}`, JSON.stringify(dayData));
+                        }
+                    } else {
+                        localStorage.setItem(`lifepulse_day_${targetDateStr}`, JSON.stringify(dayData));
+                    }
+
+                    updateChart();
+                };
+
                 const toggleGraphHabit = (habitId) => {
                     const idx = graphSelectedHabitIds.value.indexOf(habitId);
                     if (idx > -1) {
@@ -1180,7 +1267,8 @@
                             labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                         }
 
-                        const colors = ['#fbbf24', '#ffffff', '#f59e0b', '#cbd5e1', '#fef08a'];
+                        // High-contrast popping colors for dark background (Gold, Electric Cyan, Emerald Green, Vivid Rose, Purple, Orange)
+                        const colors = ['#f59e0b', '#06b6d4', '#10b981', '#f43f5e', '#a855f7', '#f97316'];
 
                         const datasets = graphSelectedHabitIds.value
                             .map(habitId => habits.value.find(h => h.id === habitId))
@@ -1259,6 +1347,7 @@
                     formattedCurrentDate,
                     changeDate,
                     habits,
+                    yesNoHabits,
                     showAddHabitModal,
                     newHabit,
                     createHabit,
@@ -1284,6 +1373,8 @@
                     deleteGoogleTask,
                     graphSelectedHabitIds,
                     calendarSelectedHabitId,
+                    selectedCalendarHabit,
+                    toggleCalendarDay,
                     graphTimeRange,
                     calendarOffset,
                     calendarMonths,
