@@ -402,16 +402,35 @@
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                                 <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Trend Graph</h3>
 
-                                <div
-                                    class="flex items-center space-x-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-medium">
-                                    <button @click="graphTimeRange = 'weekly'"
-                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'weekly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Week</button>
-                                    <button @click="graphTimeRange = 'monthly'"
-                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'monthly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Month</button>
-                                    <button @click="graphTimeRange = 'quarterly'"
-                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'quarterly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Quarter</button>
-                                    <button @click="graphTimeRange = 'yearly'"
-                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'yearly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Year</button>
+                                <div class="flex items-center space-x-2">
+                                    <div
+                                        class="flex items-center space-x-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-medium">
+                                        <button @click="graphTimeRange = 'weekly'; graphOffset = 0"
+                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'weekly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Week</button>
+                                        <button @click="graphTimeRange = 'monthly'; graphOffset = 0"
+                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'monthly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Month</button>
+                                        <button @click="graphTimeRange = 'halfyear'; graphOffset = 0"
+                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'halfyear' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">½
+                                            Year</button>
+                                        <button @click="graphTimeRange = 'yearly'; graphOffset = 0"
+                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'yearly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Year</button>
+                                    </div>
+                                    <div class="flex items-center space-x-1">
+                                        <button @click="changeGraphOffset(1)"
+                                            class="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-sm text-slate-600"
+                                            title="Previous Period">
+                                            <i class="fa-solid fa-arrow-left"></i>
+                                        </button>
+                                        <span v-if="graphOffset > 0"
+                                            class="text-xs font-semibold text-slate-700 bg-white px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                            -{{ graphOffset }}
+                                        </span>
+                                        <button @click="changeGraphOffset(-1)" :disabled="graphOffset === 0"
+                                            :class="['p-2 border rounded-lg transition shadow-sm', graphOffset === 0 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100']"
+                                            title="Next Period">
+                                            <i class="fa-solid fa-arrow-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -739,7 +758,12 @@
                     return yesNoHabits.value.find(h => h.id === calendarSelectedHabitId.value) || yesNoHabits.value[0] || null;
                 });
                 const graphTimeRange = ref('monthly');
+                const graphOffset = ref(0);
                 const calendarOffset = ref(0);
+
+                const changeGraphOffset = (direction) => {
+                    graphOffset.value = Math.max(0, graphOffset.value + direction);
+                };
 
                 // Auto-select first available Yes/No habit when list changes
                 watch(yesNoHabits, (newYesNo) => {
@@ -1257,13 +1281,15 @@
 
                         let daysToView = 30;
                         if (graphTimeRange.value === 'weekly') daysToView = 7;
-                        if (graphTimeRange.value === 'quarterly') daysToView = 90;
+                        if (graphTimeRange.value === 'halfyear') daysToView = 182;
                         if (graphTimeRange.value === 'yearly') daysToView = 365;
+
+                        const offsetDays = graphOffset.value * daysToView;
 
                         const labels = [];
                         for (let i = daysToView - 1; i >= 0; i--) {
                             const d = new Date();
-                            d.setDate(d.getDate() - i);
+                            d.setDate(d.getDate() - (i + offsetDays));
                             labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                         }
 
@@ -1279,7 +1305,7 @@
 
                                 for (let i = daysToView - 1; i >= 0; i--) {
                                     const d = new Date();
-                                    d.setDate(d.getDate() - i);
+                                    d.setDate(d.getDate() - (i + offsetDays));
                                     const year = d.getFullYear();
                                     const month = String(d.getMonth() + 1).padStart(2, '0');
                                     const day = String(d.getDate()).padStart(2, '0');
@@ -1335,7 +1361,7 @@
                     });
                 };
 
-                watch([currentTab, graphSelectedHabitIds, graphTimeRange], () => {
+                watch([currentTab, graphSelectedHabitIds, graphTimeRange, graphOffset], () => {
                     if (currentTab.value === 'analytics') updateChart();
                 }, { deep: true });
 
@@ -1376,6 +1402,8 @@
                     selectedCalendarHabit,
                     toggleCalendarDay,
                     graphTimeRange,
+                    graphOffset,
+                    changeGraphOffset,
                     calendarOffset,
                     calendarMonths,
                     changeCalendarOffset,
