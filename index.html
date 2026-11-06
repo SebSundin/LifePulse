@@ -267,7 +267,7 @@
                                                 class="fa-solid fa-chevron-down text-[10px]"></i></button>
                                     </div>
                                     <div
-                                        class="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
+                                        :class="['w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm', habit.isBadHabit ? 'bg-red-900 text-brand-700' : 'bg-brand-100 text-brand-700']">
                                         <i
                                             :class="habit.type === 'value' ? 'fa-solid fa-chart-column' : 'fa-solid fa-check'"></i>
                                     </div>
@@ -294,10 +294,10 @@
                                             class="w-14 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-600 text-center">
                                     </div>
 
-                                    <!-- Delete Habit Button -->
-                                    <button @click="deleteHabit(habit.id)"
-                                        class="text-slate-400 hover:text-red-600 p-1.5 transition">
-                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    <!-- Edit Habit Button -->
+                                    <button @click="openEditModal(habit)"
+                                        class="text-slate-400 hover:text-brand-600 p-1.5 transition">
+                                        <i class="fa-solid fa-pen-to-square text-xs"></i>
                                     </button>
                                 </div>
                             </div>
@@ -598,6 +598,63 @@
             </div>
         </div>
 
+        <!-- EDIT HABIT MODAL -->
+        <div v-if="showEditHabitModal"
+            class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg text-slate-900">Edit Habit</h3>
+                    <button @click="showEditHabitModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Habit
+                            Name</label>
+                        <input type="text" v-model="editHabitData.name" placeholder="Habit Name"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Habit
+                            Type</label>
+                        <div
+                            class="w-full px-3 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-xl text-sm cursor-not-allowed">
+                            {{ editHabitData.type === 'yesno' ? 'Yes / No' : 'Value / Number' }}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">Habit type cannot be changed after creation.</p>
+                    </div>
+
+                    <div v-if="editHabitData.type === 'yesno'" class="flex items-center space-x-2 pt-1">
+                        <input type="checkbox" id="editIsBadHabit" v-model="editHabitData.isBadHabit"
+                            class="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 bg-white">
+                        <label for="editIsBadHabit" class="text-sm font-medium text-slate-600 cursor-pointer">Mark as a
+                            bad habit (renders red)</label>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-4">
+                        <button @click="confirmDeleteFromEdit"
+                            class="text-red-600 hover:text-red-700 text-sm font-semibold flex items-center space-x-1.5 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Delete</span>
+                        </button>
+                        <div class="flex space-x-3">
+                            <button @click="showEditHabitModal = false"
+                                class="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition">
+                                Cancel
+                            </button>
+                            <button @click="saveEditHabit"
+                                class="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 transition shadow-sm">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Firebase SDK & App Logic -->
@@ -624,7 +681,6 @@
             auth = getAuth(app);
 
             googleProvider = new GoogleAuthProvider();
-            // Request Google Tasks scope for integration
             googleProvider.addScope('https://www.googleapis.com/auth/tasks');
         }
 
@@ -640,10 +696,9 @@
                 try {
                     googleAccessToken.value = localStorage.getItem('lifepulse_g_token') || null;
                 } catch (e) {
-                    console.warn("Local storage is restricted in this environment.");
+                    console.warn("Local storage is restricted.");
                 }
 
-                // Date management respecting local timezone
                 const currentDate = ref(new Date());
                 const formattedCurrentDate = computed(() => {
                     return currentDate.value.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
@@ -662,33 +717,30 @@
                     loadDayData();
                 };
 
-                // Habits State
                 const habits = ref([]);
-                const habitEntries = ref({}); // { [dateKey]: { [habitId]: value } }
+                const habitEntries = ref({});
                 const showAddHabitModal = ref(false);
                 const newHabit = ref({ name: '', type: 'yesno', isBadHabit: false });
 
-                // Analytics State
+                const showEditHabitModal = ref(false);
+                const editHabitData = ref({ id: '', name: '', type: 'yesno', isBadHabit: false });
+
                 const graphSelectedHabitIds = ref([]);
                 const calendarSelectedHabitId = ref(null);
                 const graphTimeRange = ref('monthly');
-                const calendarOffset = ref(0); // 0 = current 90 days, 1 = previous 90 days, etc.
+                const calendarOffset = ref(0);
 
-                // Journal State
                 const currentJournalText = ref('');
                 const journalSaved = ref(false);
                 let journalSaveTimeout = null;
 
-                // Google Tasks State
                 const googleTasks = ref([]);
                 const tasksLoading = ref(false);
                 const newTaskTitle = ref('');
                 const authError = ref('');
 
-                // Chart instance
                 let chartInstance = null;
 
-                // Authentication setup
                 onMounted(() => {
                     if (auth) {
                         onAuthStateChanged(auth, (u) => {
@@ -715,9 +767,7 @@
                     if (!auth) return;
                     authError.value = '';
                     try {
-                        // Explicitly enforce local persistence right before login to override iframe memory defaults
                         await setPersistence(auth, browserLocalPersistence);
-
                         const result = await signInWithPopup(auth, googleProvider);
                         const credential = GoogleAuthProvider.credentialFromResult(result);
                         if (credential && credential.accessToken) {
@@ -733,16 +783,14 @@
                             authError.value = "Google Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method, and enable Google.";
                         } else if (e.code === 'auth/unauthorized-domain') {
                             const currentHostname = window.location.hostname;
-                            authError.value = `The current domain ("${currentHostname}") is not whitelisted in your Firebase project. To fix this, go to Firebase Console -> Authentication -> Settings -> Authorized domains, and add "${currentHostname}". Meanwhile, you can dismiss this and use Local Mode!`;
+                            authError.value = `The current domain ("${currentHostname}") is not whitelisted in your Firebase project. Add it in Firebase Console -> Authentication -> Settings -> Authorized domains.`;
                         } else {
                             authError.value = "Authentication failed: " + e.message;
                         }
                     }
                 };
 
-                const dismissAuthError = () => {
-                    authError.value = '';
-                };
+                const dismissAuthError = () => { authError.value = ''; };
 
                 const logout = async () => {
                     if (!auth) return;
@@ -753,16 +801,12 @@
                     loadLocalFallbackData();
                 };
 
-                // Data Loading & Firestore synchronization
                 const loadUserData = async () => {
                     if (!db || !user.value) return;
                     try {
-                        // Load habits
                         const habitsRef = collection(db, 'artifacts', appId, 'users', user.value.uid, 'habits');
                         const habitSnap = await getDocs(habitsRef);
                         let loadedHabits = habitSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                        // Sort habits by order
                         loadedHabits.sort((a, b) => (a.order || 0) - (b.order || 0));
                         habits.value = loadedHabits;
 
@@ -770,8 +814,6 @@
                             if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
                             if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
                         }
-
-                        // Load daily entry for current date
                         loadDayData();
                     } catch (e) {
                         console.error('Error loading cloud data:', e);
@@ -795,7 +837,6 @@
                             console.error('Error loading day data:', e);
                         }
                     } else {
-                        // Local storage fallback
                         const localData = localStorage.getItem(`lifepulse_day_${dateKey.value}`);
                         if (localData) {
                             const parsed = JSON.parse(localData);
@@ -821,10 +862,6 @@
                             await setDoc(dayDocRef, dayData, { merge: true });
                         } catch (e) {
                             console.error('Error saving day data:', e);
-                            if (e.code === 'permission-denied') {
-                                authError.value = "Firestore permission denied. Please ensure your Cloud Firestore Security Rules permit read/write operations for authenticated users.";
-                            }
-                            // Save to local storage as safety fallback
                             localStorage.setItem(`lifepulse_day_${dateKey.value}`, JSON.stringify(dayData));
                         }
                     } else {
@@ -846,7 +883,7 @@
                     } else {
                         habits.value = [
                             { id: 'sleep', name: 'Sleep Hours', type: 'value', order: 0 },
-                            { id: 'headache', name: 'Headache', type: 'yesno', order: 1 }
+                            { id: 'headache', name: 'Headache', type: 'yesno', isBadHabit: true, order: 1 }
                         ];
                         graphSelectedHabitIds.value = ['sleep'];
                         calendarSelectedHabitId.value = 'sleep';
@@ -854,7 +891,6 @@
                     loadDayData();
                 };
 
-                // Habit Management
                 const createHabit = async () => {
                     if (!newHabit.value.name.trim()) return;
                     const habitId = 'habit_' + Date.now();
@@ -885,12 +921,55 @@
                     if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habitId;
                 };
 
+                const openEditModal = (habit) => {
+                    editHabitData.value = { ...habit };
+                    showEditHabitModal.value = true;
+                };
+
+                const saveEditHabit = async () => {
+                    if (!editHabitData.value.name.trim()) return;
+                    const index = habits.value.findIndex(h => h.id === editHabitData.value.id);
+                    if (index > -1) {
+                        habits.value[index].name = editHabitData.value.name;
+                        habits.value[index].isBadHabit = editHabitData.value.isBadHabit;
+
+                        if (db && user.value && !user.value.isAnonymous) {
+                            try {
+                                const habitDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'habits', editHabitData.value.id);
+                                await updateDoc(habitDocRef, {
+                                    name: editHabitData.value.name,
+                                    isBadHabit: editHabitData.value.isBadHabit
+                                });
+                            } catch (e) {
+                                console.error('Error updating habit:', e);
+                            }
+                        } else {
+                            localStorage.setItem('lifepulse_habits', JSON.stringify(habits.value));
+                        }
+                    }
+                    showEditHabitModal.value = false;
+                    updateChart();
+                };
+
+                const confirmDeleteFromEdit = async () => {
+                    await deleteHabit(editHabitData.value.id);
+                    showEditHabitModal.value = false;
+                };
+
                 const deleteHabit = async (habitId) => {
                     habits.value = habits.value.filter(h => h.id !== habitId);
+                    habits.value.forEach((h, i) => h.order = i);
+
                     if (db && user.value && !user.value.isAnonymous) {
                         try {
                             const habitDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'habits', habitId);
                             await deleteDoc(habitDocRef);
+                            const batch = writeBatch(db);
+                            habits.value.forEach(h => {
+                                const ref = doc(db, 'artifacts', appId, 'users', user.value.uid, 'habits', h.id);
+                                batch.update(ref, { order: h.order });
+                            });
+                            await batch.commit();
                         } catch (e) {
                             console.error('Error deleting habit:', e);
                         }
@@ -900,17 +979,13 @@
                 };
 
                 const moveHabit = async (index, direction) => {
-                    if (index + direction < 0 || index + direction >= habits.value.length) return;
+                    const newIndex = index + direction;
+                    if (newIndex < 0 || newIndex >= habits.value.length) return;
+                    const item = habits.value.splice(index, 1)[0];
+                    habits.value.splice(newIndex, 0, item);
 
-                    // Swap items
-                    const temp = habits.value[index];
-                    habits.value[index] = habits.value[index + direction];
-                    habits.value[index + direction] = temp;
-
-                    // Update order values for the entire list
                     habits.value.forEach((h, i) => h.order = i);
 
-                    // Save new order to database
                     if (db && user.value && !user.value.isAnonymous) {
                         try {
                             const batch = writeBatch(db);
@@ -951,7 +1026,6 @@
                     updateChart();
                 };
 
-                // Journal auto-save debounce
                 const debouncedSaveJournal = () => {
                     journalSaved.value = false;
                     if (journalSaveTimeout) clearTimeout(journalSaveTimeout);
@@ -962,21 +1036,15 @@
                     }, 800);
                 };
 
-                // Google Tasks Integration
                 const fetchGoogleTasks = async () => {
-                    if (!googleAccessToken.value) {
-                        // If we don't have token cached, try prompt or fallback
-                        return;
-                    }
+                    if (!googleAccessToken.value) return;
                     tasksLoading.value = true;
                     try {
                         const res = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
                             headers: { Authorization: `Bearer ${googleAccessToken.value}` }
                         });
                         const data = await res.json();
-                        if (data.items) {
-                            googleTasks.value = data.items;
-                        }
+                        if (data.items) googleTasks.value = data.items;
                     } catch (e) {
                         console.error('Error fetching Google Tasks:', e);
                     } finally {
@@ -990,7 +1058,6 @@
                     newTaskTitle.value = '';
 
                     if (!googleAccessToken.value) {
-                        // Local task fallback if no token
                         googleTasks.value.unshift({ id: 'local_' + Date.now(), title, status: 'needsAction' });
                         return;
                     }
@@ -1045,7 +1112,6 @@
                     }
                 };
 
-                // Analytics & Calendar Grid Computation
                 const calendarMonths = computed(() => {
                     const list = [];
                     const habitId = calendarSelectedHabitId.value;
@@ -1053,7 +1119,6 @@
 
                     const today = new Date();
                     for (let i = 0; i < 4; i++) {
-                        // Move backward month by month based on the offset
                         const targetDate = new Date(today.getFullYear(), today.getMonth() - offset - i, 1);
                         const year = targetDate.getFullYear();
                         const month = targetDate.getMonth();
@@ -1109,20 +1174,17 @@
                         if (graphTimeRange.value === 'yearly') daysToView = 365;
 
                         const labels = [];
-
-                        // Pre-calculate labels
                         for (let i = daysToView - 1; i >= 0; i--) {
                             const d = new Date();
                             d.setDate(d.getDate() - i);
                             labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                         }
 
-                        // Colors for multiple datasets (High contrast Golds, Whites, Ambers)
                         const colors = ['#fbbf24', '#ffffff', '#f59e0b', '#cbd5e1', '#fef08a'];
 
                         const datasets = graphSelectedHabitIds.value
                             .map(habitId => habits.value.find(h => h.id === habitId))
-                            .filter(Boolean) // Filter out any undefined/deleted habits safely
+                            .filter(Boolean)
                             .map((habitObj, index) => {
                                 const habitId = habitObj.id;
                                 const dataPoints = [];
@@ -1136,7 +1198,6 @@
                                     const dKey = `${year}-${month}-${day}`;
 
                                     const val = habitEntries.value[dKey] && habitEntries.value[dKey][habitId];
-
                                     if (val !== undefined && val !== '') {
                                         dataPoints.push(habitObj.type === 'yesno' ? (val ? 1 : 0) : Number(val));
                                     } else {
@@ -1150,7 +1211,7 @@
                                 return {
                                     label: habitObj.name || 'Habit',
                                     data: dataPoints,
-                                    backgroundColor: isBar ? color : color + '80', // Solid color for bars to ensure high visibility
+                                    backgroundColor: isBar ? color : color + '80',
                                     borderColor: color,
                                     borderWidth: 2,
                                     tension: 0.3,
@@ -1159,22 +1220,14 @@
                                 };
                             });
 
-                        if (chartInstance) {
-                            chartInstance.destroy();
-                        }
+                        if (chartInstance) chartInstance.destroy();
 
                         chartInstance = new Chart(canvasEl, {
-                            data: {
-                                labels: labels,
-                                datasets: datasets
-                            },
+                            data: { labels: labels, datasets: datasets },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
-                                interaction: {
-                                    mode: 'index',
-                                    intersect: false,
-                                },
+                                interaction: { mode: 'index', intersect: false },
                                 scales: {
                                     y: {
                                         beginAtZero: true,
@@ -1187,9 +1240,7 @@
                                     }
                                 },
                                 plugins: {
-                                    legend: {
-                                        labels: { color: '#cbd5e1' }
-                                    }
+                                    legend: { labels: { color: '#cbd5e1' } }
                                 }
                             }
                         });
@@ -1197,9 +1248,7 @@
                 };
 
                 watch([currentTab, graphSelectedHabitIds, graphTimeRange], () => {
-                    if (currentTab.value === 'analytics') {
-                        updateChart();
-                    }
+                    if (currentTab.value === 'analytics') updateChart();
                 }, { deep: true });
 
                 return {
@@ -1213,6 +1262,11 @@
                     showAddHabitModal,
                     newHabit,
                     createHabit,
+                    showEditHabitModal,
+                    editHabitData,
+                    openEditModal,
+                    saveEditHabit,
+                    confirmDeleteFromEdit,
                     deleteHabit,
                     moveHabit,
                     getHabitValue,
