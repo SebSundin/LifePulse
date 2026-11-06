@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker, To-Do & Journal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#423300',
+                            100: '#735a00',
+                            500: '#facc15',
+                            600: '#eab308',
+                            700: '#ca8a04',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        /* Premium Black & Gold Theme Overrides */
+        body,
+        .bg-slate-50 {
+            background-color: #0d0d0d !important;
+            color: #e5e5e5 !important;
+        }
+
+        .bg-white {
+            background-color: #1a1a1a !important;
+            border-color: #333333 !important;
+        }
+
+        .text-slate-900 {
+            color: #facc15 !important;
+        }
+
+        /* Gold for main headings */
+        .text-slate-800 {
+            color: #fef08a !important;
+        }
+
+        /* Lighter gold for subheadings */
+        .text-slate-700,
+        .text-slate-600 {
+            color: #cccccc !important;
+        }
+
+        .text-slate-500,
+        .text-slate-400 {
+            color: #888888 !important;
+        }
+
+        .border-slate-100,
+        .border-slate-200,
+        .border-slate-300 {
+            border-color: #333333 !important;
+        }
+
+        .bg-slate-100,
+        .bg-slate-200 {
+            background-color: #262626 !important;
+        }
+
+        .bg-slate-50\/50 {
+            background-color: #141414 !important;
+        }
+
+        /* Inputs & textareas */
+        input,
+        textarea,
+        select {
+            background-color: #222 !important;
+            color: #fff !important;
+            border-color: #444 !important;
+        }
+
+        /* Adjust brand colors to pure gold */
+        .bg-brand-600,
+        .bg-brand-500 {
+            background-color: #eab308 !important;
+            color: #000 !important;
+            border-color: #ca8a04 !important;
+        }
+
+        .hover\:bg-brand-700:hover {
+            background-color: #ca8a04 !important;
+        }
+
+        .bg-brand-50,
+        .bg-brand-100 {
+            background-color: #332700 !important;
+            color: #facc15 !important;
+        }
+
+        .text-brand-600,
+        .text-brand-700 {
+            color: #eab308 !important;
+        }
+
+        /* Graph invert trick for dark mode */
+        canvas {
+            filter: invert(0.88) hue-rotate(180deg);
+        }
+    </style>
+</head>
+
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+    <div id="app" v-cloak class="min-h-full flex flex-col">
+
+        <!-- Navbar -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-brand-600 text-white p-2.5 rounded-xl shadow-sm">
+                        <i class="fa-solid fa-seedling text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg text-slate-900 leading-tight">LifePulse</h1>
+                        <p class="text-xs text-slate-500">Habits • Todos • Journal</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- Date Navigator -->
+                    <div class="hidden sm:flex items-center bg-slate-100 rounded-lg p-1 text-sm font-medium">
+                        <button @click="changeDate(-1)"
+                            class="px-3 py-1.5 hover:bg-white rounded-md transition shadow-2xs">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                        <span class="px-4 py-1 text-slate-700">{{ formattedCurrentDate }}</span>
+                        <button @click="changeDate(1)"
+                            class="px-3 py-1.5 hover:bg-white rounded-md transition shadow-2xs">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- User Profile / Auth -->
+                    <div v-if="user" class="flex items-center space-x-3">
+                        <img :src="user.photoURL || 'https://placehold.co/40x40/ffb300/161616?text=U'" alt="Avatar"
+                            class="w-9 h-9 rounded-full border-2 border-brand-500 shadow-xs">
+                        <button @click="logout"
+                            class="text-xs font-semibold text-slate-600 hover:text-red-600 transition bg-slate-100 hover:bg-red-50 px-3 py-2 rounded-lg">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Sign Out
+                        </button>
+                    </div>
+                    <button v-else @click="login"
+                        class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-2">
+                        <i class="fa-brands fa-google"></i>
+                        <span>Sign in with Google</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+            <!-- Auth Error Banner -->
+            <div v-if="authError"
+                class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start text-red-800 text-sm font-medium">
+                <i class="fa-solid fa-circle-exclamation mr-3 text-red-500 text-xl mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="font-bold mb-1">Database Permission Warning</p>
+                    <p class="text-xs leading-relaxed">{{ authError }}</p>
+                    <div class="mt-3 flex items-center space-x-3">
+                        <button @click="dismissAuthError"
+                            class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+                            Dismiss & Use Local Storage
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auth Warning banner if not signed in -->
+            <div v-if="!user && !authLoading"
+                class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between text-amber-800">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl"></i>
+                    <div>
+                        <h3 class="font-semibold text-sm">Offline / Local Mode</h3>
+                        <p class="text-xs text-amber-700">Sign in with Google to sync your habits, journal entries, and
+                            Google Tasks across devices.</p>
+                    </div>
+                </div>
+                <button @click="login"
+                    class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xs">
+                    Sign In Now
+                </button>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="flex border-b border-slate-200 mb-6 space-x-8">
+                <button @click="currentTab = 'daily'"
+                    :class="['pb-3 font-semibold text-sm border-b-2 transition flex items-center space-x-2', currentTab === 'daily' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span>Daily Dashboard</span>
+                </button>
+                <button @click="currentTab = 'analytics'"
+                    :class="['pb-3 font-semibold text-sm border-b-2 transition flex items-center space-x-2', currentTab === 'analytics' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Habit Analytics</span>
+                </button>
+                <button @click="currentTab = 'todos'"
+                    :class="['pb-3 font-semibold text-sm border-b-2 transition flex items-center space-x-2', currentTab === 'todos' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Google Tasks</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: DAILY DASHBOARD (Habits + Journal + Tasks overview) -->
+            <div v-if="currentTab === 'daily'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Left 2 Cols: Habits & Journal -->
+                <div class="lg:col-span-2 space-y-6">
+
+                    <!-- Habits Section -->
+                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="font-bold text-lg text-slate-900">Daily Habits</h2>
+                                <p class="text-xs text-slate-500">Track your daily routines and metrics for {{
+                                    formattedCurrentDate }}</p>
+                            </div>
+                            <button @click="showAddHabitModal = true"
+                                class="bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add Habit</span>
+                            </button>
+                        </div>
+
+                        <div v-if="habits.length === 0"
+                            class="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl">
+                            <i class="fa-solid fa-clipboard-list text-slate-300 text-3xl mb-2"></i>
+                            <p class="text-sm font-medium text-slate-600">No habits configured yet.</p>
+                            <p class="text-xs text-slate-400 mt-1">Click "Add Habit" to start tracking sleep, headaches,
+                                workout, etc.</p>
+                        </div>
+
+                        <div v-else class="space-y-3">
+                            <div v-for="habit in habits" :key="habit.id"
+                                class="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition">
+                                <div class="flex items-center space-x-3">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold">
+                                        <i
+                                            :class="habit.type === 'value' ? 'fa-solid fa-chart-column' : 'fa-solid fa-check'"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-slate-800 text-sm">{{ habit.name }}</h4>
+                                        <div v-if="habit.targetTime"
+                                            class="flex items-center space-x-2 text-xs text-slate-500">
+                                            <span><i class="fa-regular fa-bell mr-1"></i>{{ habit.targetTime }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Habit Input Control -->
+                                <div class="flex items-center space-x-2">
+                                    <!-- Yes/No Habit -->
+                                    <button v-if="habit.type === 'yesno'" @click="toggleHabitEntry(habit.id)"
+                                        :class="['px-4 py-2 rounded-xl font-semibold text-xs transition flex items-center space-x-1.5', getHabitValue(habit.id) ? 'bg-brand-600 text-white shadow-xs' : 'bg-slate-200 text-slate-600 hover:bg-slate-300']">
+                                        <i
+                                            :class="getHabitValue(habit.id) ? 'fa-solid fa-check' : 'fa-solid fa-minus'"></i>
+                                        <span>{{ getHabitValue(habit.id) ? 'Done' : 'Pending' }}</span>
+                                    </button>
+
+                                    <!-- Value Habit -->
+                                    <div v-else class="flex items-center space-x-1.5">
+                                        <input type="number" step="any" :value="getHabitValue(habit.id)"
+                                            @change="updateHabitValue(habit.id, $event.target.value)"
+                                            placeholder="Value"
+                                            class="w-24 px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:outline-none focus:border-brand-600 text-center">
+                                        <span class="text-xs text-slate-500 font-medium">units</span>
+                                    </div>
+
+                                    <!-- Delete Habit Button -->
+                                    <button @click="deleteHabit(habit.id)"
+                                        class="text-slate-400 hover:text-red-600 p-2 transition">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Journal Section -->
+                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h2 class="font-bold text-lg text-slate-900">Daily Journal</h2>
+                                <p class="text-xs text-slate-500">Reflections and notes for {{ formattedCurrentDate }}
+                                </p>
+                            </div>
+                            <span v-if="journalSaved"
+                                class="text-xs font-semibold text-brand-600 flex items-center space-x-1">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span>Saved</span>
+                            </span>
+                        </div>
+                        <textarea v-model="currentJournalText" @input="debouncedSaveJournal" rows="4"
+                            placeholder="How was your day? Write your thoughts, gratitude, or events here..."
+                            class="w-full p-4 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-600 bg-slate-50/50 resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Right Col: Mini Google Tasks Quick View -->
+                <div class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="font-bold text-lg text-slate-900">Google Tasks</h2>
+                                <p class="text-xs text-slate-500">Synced with your Google account</p>
+                            </div>
+                            <button @click="fetchGoogleTasks"
+                                class="text-brand-600 hover:text-brand-700 text-xs font-semibold">
+                                <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                            </button>
+                        </div>
+
+                        <div v-if="!user" class="text-center py-6 border border-slate-100 rounded-xl bg-slate-50 p-4">
+                            <i class="fa-brands fa-google text-slate-400 text-2xl mb-2"></i>
+                            <p class="text-xs text-slate-600 font-medium mb-3">Sign in with Google to view and manage
+                                your Google Tasks inside this app.</p>
+                            <button @click="login"
+                                class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-3 py-2 rounded-lg">
+                                Connect Google
+                            </button>
+                        </div>
+
+                        <div v-else>
+                            <div class="flex space-x-2 mb-4">
+                                <input type="text" v-model="newTaskTitle" @keyup.enter="createGoogleTask"
+                                    placeholder="Add a quick task..."
+                                    class="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-600">
+                                <button @click="createGoogleTask"
+                                    class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+
+                            <div v-if="tasksLoading" class="text-center py-6 text-slate-400 text-xs">
+                                <i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading tasks...
+                            </div>
+                            <div v-else-if="googleTasks.length === 0" class="text-center py-6 text-slate-400 text-xs">
+                                No active tasks found.
+                            </div>
+                            <div v-else class="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                                <div v-for="task in googleTasks" :key="task.id"
+                                    class="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition">
+                                    <label class="flex items-center space-x-3 cursor-pointer flex-1 mr-2">
+                                        <input type="checkbox" :checked="task.status === 'completed'"
+                                            @change="toggleTaskComplete(task)"
+                                            class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+                                        <span
+                                            :class="['text-xs font-medium', task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-700']">{{
+                                            task.title }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: ANALYTICS & HISTORY -->
+            <div v-if="currentTab === 'analytics'" class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
+                    <h2 class="font-bold text-lg text-slate-900 mb-1">Habit Analytics & History</h2>
+                    <p class="text-xs text-slate-500 mb-6">Analyze your habits over time and review your historical
+                        calendar grid.</p>
+
+                    <div v-if="habits.length === 0"
+                        class="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
+                        Create a habit first to view its analytics.
+                    </div>
+                    <div v-else class="space-y-8">
+
+                        <!-- 1. GRAPH SECTION -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Trend Graph</h3>
+
+                                <div
+                                    class="flex items-center space-x-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-medium">
+                                    <button @click="graphTimeRange = 'weekly'"
+                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'weekly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Week</button>
+                                    <button @click="graphTimeRange = 'monthly'"
+                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'monthly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Month</button>
+                                    <button @click="graphTimeRange = 'quarterly'"
+                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'quarterly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Quarter</button>
+                                    <button @click="graphTimeRange = 'yearly'"
+                                        :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'yearly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Year</button>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-500 mb-3">Select one or multiple habits to compare:</p>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <button v-for="h in habits" :key="'graph_'+h.id" @click="toggleGraphHabit(h.id)"
+                                    :class="['px-3 py-1.5 rounded-xl text-xs font-semibold transition border', graphSelectedHabitIds.includes(h.id) ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300']">
+                                    <i
+                                        :class="['mr-1', graphSelectedHabitIds.includes(h.id) ? 'fa-solid fa-check' : 'fa-solid fa-plus']"></i>
+                                    {{ h.name }}
+                                </button>
+                            </div>
+
+                            <div class="h-72 relative bg-white p-3 rounded-xl border border-slate-200">
+                                <canvas id="habitChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 2. CALENDAR GRID SECTION -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">4-Month Calendar
+                                    Grid</h3>
+
+                                <div class="flex items-center space-x-3">
+                                    <button @click="changeCalendarOffset(1)"
+                                        class="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-sm text-slate-600">
+                                        <i class="fa-solid fa-arrow-left"></i>
+                                    </button>
+                                    <span
+                                        class="text-xs font-semibold text-slate-700 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
+                                        {{ calendarOffset === 0 ? 'Last 4 Months' : (calendarOffset * 4) + ' to ' +
+                                        ((calendarOffset + 1) * 4) + ' Months Ago' }}
+                                    </span>
+                                    <button @click="changeCalendarOffset(-1)" :disabled="calendarOffset === 0"
+                                        :class="['p-2 border rounded-lg transition shadow-sm', calendarOffset === 0 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100']">
+                                        <i class="fa-solid fa-arrow-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-500 mb-3">Select a single habit to view its calendar history:
+                            </p>
+                            <div class="flex space-x-2 overflow-x-auto pb-3 mb-4">
+                                <button v-for="h in habits" :key="'cal_'+h.id" @click="calendarSelectedHabitId = h.id"
+                                    :class="['px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap border', calendarSelectedHabitId === h.id ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50']">
+                                    {{ h.name }}
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div v-for="month in calendarMonths" :key="month.name"
+                                    class="p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
+                                    <h4
+                                        class="text-xs font-bold mb-3 text-center text-slate-900 uppercase tracking-widest">
+                                        {{ month.name }}</h4>
+                                    <div class="flex flex-wrap gap-1.5 justify-center">
+                                        <div v-for="day in month.days" :key="day.dateStr"
+                                            :class="['w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-[10px] sm:text-[9px] font-bold transition-all', 
+                                                      day.isFuture ? 'opacity-10 bg-slate-200' : 
+                                                      day.completed ? 'bg-brand-500 text-black shadow-xs' : 'bg-slate-100 text-slate-400']"
+                                            :title="`${day.dateStr}${day.value ? ' - Value: ' + day.value : ''}`">
+                                            {{ day.dayNum }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: GOOGLE TASKS FULL VIEW -->
+            <div v-if="currentTab === 'todos'" class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 max-w-3xl mx-auto">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 class="font-bold text-lg text-slate-900">Google Tasks Manager</h2>
+                            <p class="text-xs text-slate-500">Manage all your synced task lists directly</p>
+                        </div>
+                        <button @click="fetchGoogleTasks"
+                            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                            <i class="fa-solid fa-rotate mr-1"></i> Refresh Tasks
+                        </button>
+                    </div>
+
+                    <div v-if="!user" class="text-center py-12 border border-slate-200 rounded-2xl bg-slate-50 p-6">
+                        <i class="fa-brands fa-google text-slate-400 text-3xl mb-3"></i>
+                        <h3 class="font-bold text-slate-700 text-sm mb-1">Google Authentication Required</h3>
+                        <p class="text-xs text-slate-500 mb-4">Please sign in with your Google account to access your
+                            Google Tasks.</p>
+                        <button @click="login"
+                            class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">
+                            Sign In with Google
+                        </button>
+                    </div>
+
+                    <div v-else class="space-y-4">
+                        <div class="flex space-x-2">
+                            <input type="text" v-model="newTaskTitle" @keyup.enter="createGoogleTask"
+                                placeholder="What needs to be done?"
+                                class="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600">
+                            <button @click="createGoogleTask"
+                                class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-xs">
+                                Add Task
+                            </button>
+                        </div>
+
+                        <div v-if="googleTasks.length === 0"
+                            class="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-2xl">
+                            No tasks found in your primary Google Task list.
+                        </div>
+
+                        <div v-else class="space-y-2">
+                            <div v-for="task in googleTasks" :key="task.id"
+                                class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 transition shadow-2xs">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1 mr-4">
+                                    <input type="checkbox" :checked="task.status === 'completed'"
+                                        @change="toggleTaskComplete(task)"
+                                        class="w-5 h-5 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+                                    <span
+                                        :class="['text-sm font-medium', task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800']">{{
+                                        task.title }}</span>
+                                </label>
+                                <button @click="deleteGoogleTask(task.id)"
+                                    class="text-slate-400 hover:text-red-600 p-2 transition">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ADD HABIT MODAL -->
+        <div v-if="showAddHabitModal"
+            class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg text-slate-900">Add New Habit</h3>
+                    <button @click="showAddHabitModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Habit
+                            Name</label>
+                        <input type="text" v-model="newHabit.name" placeholder="e.g. Sleep Hours, Headache, Meditation"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Habit
+                            Type</label>
+                        <select v-model="newHabit.type"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600 bg-white">
+                            <option value="yesno">Yes / No (e.g. Headache occurred)</option>
+                            <option value="value">Value / Number (e.g. Hours of sleep)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Reminder
+                            Notification Time (Optional)</label>
+                        <input type="time" v-model="newHabit.targetTime"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600">
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button @click="showAddHabitModal = false"
+                            class="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition">
+                            Cancel
+                        </button>
+                        <button @click="createHabit"
+                            class="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 transition shadow-sm">
+                            Create Habit
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDK & App Logic -->
+    <script type="module">
+        import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifepulse-default-app';
+        const firebaseConfig = {
+            apiKey: "AIzaSyBfYyvC0LUJ23AAsm7wBcwZaw4rkioCkRo",
+            authDomain: "habitjournaltracker-469a3.firebaseapp.com",
+            projectId: "habitjournaltracker-469a3",
+            storageBucket: "habitjournaltracker-469a3.firebasestorage.app",
+            messagingSenderId: "582128562385",
+            appId: "1:582128562385:web:eb71c87e2282e4a0a115f0",
+            measurementId: "G-RDNY2M1VFG"
+        };
+
+        let app, db, auth, googleProvider;
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            googleProvider = new GoogleAuthProvider();
+            // Request Google Tasks scope for integration
+            googleProvider.addScope('https://www.googleapis.com/auth/tasks');
+        }
+
+        const {createApp, ref, computed, onMounted, watch, nextTick} = Vue;
+
+        createApp({
+            setup() {
+                const currentTab = ref('daily');
+                const authLoading = ref(true);
+                const user = ref(null);
+
+                const googleAccessToken = ref(null);
+                try {
+                    googleAccessToken.value = localStorage.getItem('lifepulse_g_token') || null;
+                } catch (e) {
+                    console.warn("Local storage is restricted in this environment.");
+                }
+
+                // Date management respecting local timezone
+                const currentDate = ref(new Date());
+                const formattedCurrentDate = computed(() => {
+                    return currentDate.value.toLocaleDateString(undefined, {weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
+                });
+                const dateKey = computed(() => {
+                    const year = currentDate.value.getFullYear();
+                    const month = String(currentDate.value.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.value.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                });
+
+                const changeDate = (days) => {
+                    const d = new Date(currentDate.value);
+                    d.setDate(d.getDate() + days);
+                    currentDate.value = d;
+                    loadDayData();
+                };
+
+                // Habits State
+                const habits = ref([]);
+                const habitEntries = ref({}); // { [dateKey]: { [habitId]: value } }
+                const showAddHabitModal = ref(false);
+                const newHabit = ref({name: '', type: 'yesno', targetTime: '08:00'});
+
+                // Analytics State
+                const graphSelectedHabitIds = ref([]);
+                const calendarSelectedHabitId = ref(null);
+                const graphTimeRange = ref('monthly');
+                const calendarOffset = ref(0); // 0 = current 90 days, 1 = previous 90 days, etc.
+
+                // Journal State
+                const currentJournalText = ref('');
+                const journalSaved = ref(false);
+                let journalSaveTimeout = null;
+
+                // Google Tasks State
+                const googleTasks = ref([]);
+                const tasksLoading = ref(false);
+                const newTaskTitle = ref('');
+                const authError = ref('');
+
+                // Chart instance
+                let chartInstance = null;
+
+                // Authentication setup
+                onMounted(() => {
+                    if (auth) {
+                        onAuthStateChanged(auth, (u) => {
+                            user.value = u;
+                            authLoading.value = false;
+                            if (u && !u.isAnonymous) {
+                                loadUserData();
+                                if (googleAccessToken.value) {
+                                    fetchGoogleTasks();
+                                }
+                            } else {
+                                try {localStorage.removeItem('lifepulse_g_token');} catch (e) { }
+                                googleAccessToken.value = null;
+                                loadLocalFallbackData();
+                            }
+                        });
+                    } else {
+                        authLoading.value = false;
+                        loadLocalFallbackData();
+                    }
+                });
+
+                const login = async () => {
+                    if (!auth) return;
+                    authError.value = '';
+                    try {
+                        // Explicitly enforce local persistence right before login to override iframe memory defaults
+                        await setPersistence(auth, browserLocalPersistence);
+
+                        const result = await signInWithPopup(auth, googleProvider);
+                        const credential = GoogleAuthProvider.credentialFromResult(result);
+                        if (credential && credential.accessToken) {
+                            googleAccessToken.value = credential.accessToken;
+                            try {localStorage.setItem('lifepulse_g_token', credential.accessToken);} catch (e) { }
+                            fetchGoogleTasks();
+                        }
+                        user.value = result.user;
+                        loadUserData();
+                    } catch (e) {
+                        console.error('Google Sign-In failed:', e);
+                        if (e.code === 'auth/configuration-not-found') {
+                            authError.value = "Google Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method, and enable Google.";
+                        } else if (e.code === 'auth/unauthorized-domain') {
+                            const currentHostname = window.location.hostname;
+                            authError.value = `The current domain ("${currentHostname}") is not whitelisted in your Firebase project. To fix this, go to Firebase Console -> Authentication -> Settings -> Authorized domains, and add "${currentHostname}". Meanwhile, you can dismiss this and use Local Mode!`;
+                        } else {
+                            authError.value = "Authentication failed: " + e.message;
+                        }
+                    }
+                };
+
+                const dismissAuthError = () => {
+                    authError.value = '';
+                };
+
+                const logout = async () => {
+                    if (!auth) return;
+                    await signOut(auth);
+                    user.value = null;
+                    googleAccessToken.value = null;
+                    try {localStorage.removeItem('lifepulse_g_token');} catch (e) { }
+                    loadLocalFallbackData();
+                };
+
+                // Data Loading & Firestore synchronization
+                const loadUserData = async () => {
+                    if (!db || !user.value) return;
+                    try {
+                        // Load habits
+                        const habitsRef = collection(db, 'artifacts', appId, 'users', user.value.uid, 'habits');
+                        const habitSnap = await getDocs(habitsRef);
+                        habits.value = habitSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        if (habits.value.length > 0) {
+                            if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
+                            if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
+                        }
+
+                        // Load daily entry for current date
+                        loadDayData();
+                    } catch (e) {
+                        console.error('Error loading cloud data:', e);
+                    }
+                };
+
+                const loadDayData = async () => {
+                    if (db && user.value && !user.value.isAnonymous) {
+                        try {
+                            const dayDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs', dateKey.value);
+                            const snap = await getDoc(dayDocRef);
+                            if (snap.exists()) {
+                                const data = snap.data();
+                                currentJournalText.value = data.journal || '';
+                                habitEntries.value[dateKey.value] = data.habits || {};
+                            } else {
+                                currentJournalText.value = '';
+                                if (!habitEntries.value[dateKey.value]) habitEntries.value[dateKey.value] = {};
+                            }
+                        } catch (e) {
+                            console.error('Error loading day data:', e);
+                        }
+                    } else {
+                        // Local storage fallback
+                        const localData = localStorage.getItem(`lifepulse_day_${dateKey.value}`);
+                        if (localData) {
+                            const parsed = JSON.parse(localData);
+                            currentJournalText.value = parsed.journal || '';
+                            habitEntries.value[dateKey.value] = parsed.habits || {};
+                        } else {
+                            currentJournalText.value = '';
+                            if (!habitEntries.value[dateKey.value]) habitEntries.value[dateKey.value] = {};
+                        }
+                    }
+                    updateChart();
+                };
+
+                const saveCurrentDayData = async () => {
+                    const dayData = {
+                        journal: currentJournalText.value,
+                        habits: habitEntries.value[dateKey.value] || {}
+                    };
+
+                    if (db && user.value && !user.value.isAnonymous) {
+                        try {
+                            const dayDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs', dateKey.value);
+                            await setDoc(dayDocRef, dayData, {merge: true});
+                        } catch (e) {
+                            console.error('Error saving day data:', e);
+                            if (e.code === 'permission-denied') {
+                                authError.value = "Firestore permission denied. Please ensure your Cloud Firestore Security Rules permit read/write operations for authenticated users.";
+                            }
+                            // Save to local storage as safety fallback
+                            localStorage.setItem(`lifepulse_day_${dateKey.value}`, JSON.stringify(dayData));
+                        }
+                    } else {
+                        localStorage.setItem(`lifepulse_day_${dateKey.value}`, JSON.stringify(dayData));
+                    }
+                };
+
+                const loadLocalFallbackData = () => {
+                    const localHabits = localStorage.getItem('lifepulse_habits');
+                    if (localHabits) {
+                        habits.value = JSON.parse(localHabits);
+                        if (habits.value.length > 0) {
+                            if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
+                            if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
+                        }
+                    } else {
+                        habits.value = [
+                            {id: 'sleep', name: 'Sleep Hours', type: 'value', targetTime: '08:00'},
+                            {id: 'headache', name: 'Headache', type: 'yesno', targetTime: ''}
+                        ];
+                        graphSelectedHabitIds.value = ['sleep'];
+                        calendarSelectedHabitId.value = 'sleep';
+                    }
+                    loadDayData();
+                };
+
+                // Habit Management
+                const createHabit = async () => {
+                    if (!newHabit.value.name.trim()) return;
+                    const habitId = 'habit_' + Date.now();
+                    const habitObj = {
+                        id: habitId,
+                        name: newHabit.value.name,
+                        type: newHabit.value.type,
+                        targetTime: newHabit.value.targetTime || ''
+                    };
+
+                    habits.value.push(habitObj);
+                    showAddHabitModal.value = false;
+                    newHabit.value = {name: '', type: 'yesno', targetTime: '08:00'};
+
+                    if (db && user.value && !user.value.isAnonymous) {
+                        try {
+                            const habitDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'habits', habitId);
+                            await setDoc(habitDocRef, habitObj);
+                        } catch (e) {
+                            console.error('Error saving habit:', e);
+                        }
+                    } else {
+                        localStorage.setItem('lifepulse_habits', JSON.stringify(habits.value));
+                    }
+
+                    if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habitId];
+                    if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habitId;
+                };
+
+                const deleteHabit = async (habitId) => {
+                    habits.value = habits.value.filter(h => h.id !== habitId);
+                    if (db && user.value && !user.value.isAnonymous) {
+                        try {
+                            const habitDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'habits', habitId);
+                            await deleteDoc(habitDocRef);
+                        } catch (e) {
+                            console.error('Error deleting habit:', e);
+                        }
+                    } else {
+                        localStorage.setItem('lifepulse_habits', JSON.stringify(habits.value));
+                    }
+                };
+
+                const getHabitValue = (habitId) => {
+                    if (!habitEntries.value[dateKey.value]) return null;
+                    return habitEntries.value[dateKey.value][habitId];
+                };
+
+                const toggleHabitEntry = (habitId) => {
+                    if (!habitEntries.value[dateKey.value]) {
+                        habitEntries.value[dateKey.value] = {};
+                    }
+                    const currentVal = habitEntries.value[dateKey.value][habitId];
+                    habitEntries.value[dateKey.value][habitId] = !currentVal;
+                    saveCurrentDayData();
+                    updateChart();
+                };
+
+                const updateHabitValue = (habitId, val) => {
+                    if (!habitEntries.value[dateKey.value]) {
+                        habitEntries.value[dateKey.value] = {};
+                    }
+                    habitEntries.value[dateKey.value][habitId] = val === '' ? '' : Number(val);
+                    saveCurrentDayData();
+                    updateChart();
+                };
+
+                // Journal auto-save debounce
+                const debouncedSaveJournal = () => {
+                    journalSaved.value = false;
+                    if (journalSaveTimeout) clearTimeout(journalSaveTimeout);
+                    journalSaveTimeout = setTimeout(() => {
+                        saveCurrentDayData();
+                        journalSaved.value = true;
+                        setTimeout(() => journalSaved.value = false, 2000);
+                    }, 800);
+                };
+
+                // Google Tasks Integration
+                const fetchGoogleTasks = async () => {
+                    if (!googleAccessToken.value) {
+                        // If we don't have token cached, try prompt or fallback
+                        return;
+                    }
+                    tasksLoading.value = true;
+                    try {
+                        const res = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+                            headers: {Authorization: `Bearer ${googleAccessToken.value}`}
+                        });
+                        const data = await res.json();
+                        if (data.items) {
+                            googleTasks.value = data.items;
+                        }
+                    } catch (e) {
+                        console.error('Error fetching Google Tasks:', e);
+                    } finally {
+                        tasksLoading.value = false;
+                    }
+                };
+
+                const createGoogleTask = async () => {
+                    if (!newTaskTitle.value.trim()) return;
+                    const title = newTaskTitle.value;
+                    newTaskTitle.value = '';
+
+                    if (!googleAccessToken.value) {
+                        // Local task fallback if no token
+                        googleTasks.value.unshift({id: 'local_' + Date.now(), title, status: 'needsAction'});
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
+                            method: 'POST',
+                            headers: {
+                                Authorization: `Bearer ${googleAccessToken.value}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({title})
+                        });
+                        const newTask = await res.json();
+                        googleTasks.value.unshift(newTask);
+                    } catch (e) {
+                        console.error('Error creating task:', e);
+                    }
+                };
+
+                const toggleTaskComplete = async (task) => {
+                    const newStatus = task.status === 'completed' ? 'needsAction' : 'completed';
+                    task.status = newStatus;
+
+                    if (!googleAccessToken.value || task.id.startsWith('local_')) return;
+
+                    try {
+                        await fetch(`https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${task.id}`, {
+                            method: 'PATCH',
+                            headers: {
+                                Authorization: `Bearer ${googleAccessToken.value}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({status: newStatus})
+                        });
+                    } catch (e) {
+                        console.error('Error updating task:', e);
+                    }
+                };
+
+                const deleteGoogleTask = async (taskId) => {
+                    googleTasks.value = googleTasks.value.filter(t => t.id !== taskId);
+                    if (!googleAccessToken.value || taskId.startsWith('local_')) return;
+
+                    try {
+                        await fetch(`https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`, {
+                            method: 'DELETE',
+                            headers: {Authorization: `Bearer ${googleAccessToken.value}`}
+                        });
+                    } catch (e) {
+                        console.error('Error deleting task:', e);
+                    }
+                };
+
+                // Analytics & Calendar Grid Computation
+                const calendarMonths = computed(() => {
+                    const list = [];
+                    const habitId = calendarSelectedHabitId.value;
+                    const offset = calendarOffset.value * 4;
+
+                    const today = new Date();
+                    for (let i = 0; i < 4; i++) {
+                        // Move backward month by month based on the offset
+                        const targetDate = new Date(today.getFullYear(), today.getMonth() - offset - i, 1);
+                        const year = targetDate.getFullYear();
+                        const month = targetDate.getMonth();
+                        const monthName = targetDate.toLocaleDateString(undefined, {month: 'long', year: 'numeric'});
+
+                        const daysInMonth = new Date(year, month + 1, 0).getDate();
+                        const days = [];
+
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const dateObj = new Date(year, month, d);
+                            const dKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+                            const dayEntry = habitEntries.value[dKey] && habitId ? habitEntries.value[dKey][habitId] : undefined;
+                            const isCompleted = dayEntry === true || (typeof dayEntry === 'number' && dayEntry > 0);
+
+                            days.push({
+                                dateStr: dKey,
+                                dayNum: d,
+                                value: dayEntry,
+                                completed: isCompleted,
+                                isFuture: dateObj > today
+                            });
+                        }
+                        list.push({name: monthName, days});
+                    }
+                    return list;
+                });
+
+                const changeCalendarOffset = (direction) => {
+                    calendarOffset.value = Math.max(0, calendarOffset.value + direction);
+                };
+
+                const toggleGraphHabit = (habitId) => {
+                    const idx = graphSelectedHabitIds.value.indexOf(habitId);
+                    if (idx > -1) {
+                        if (graphSelectedHabitIds.value.length > 1) {
+                            graphSelectedHabitIds.value.splice(idx, 1);
+                        }
+                    } else {
+                        graphSelectedHabitIds.value.push(habitId);
+                    }
+                };
+
+                const updateChart = () => {
+                    if (currentTab.value !== 'analytics') return;
+                    nextTick(() => {
+                        const canvasEl = document.getElementById('habitChart');
+                        if (!canvasEl) return;
+
+                        let daysToView = 30;
+                        if (graphTimeRange.value === 'weekly') daysToView = 7;
+                        if (graphTimeRange.value === 'quarterly') daysToView = 90;
+                        if (graphTimeRange.value === 'yearly') daysToView = 365;
+
+                        const labels = [];
+
+                        // Pre-calculate labels
+                        for (let i = daysToView - 1; i >= 0; i--) {
+                            const d = new Date();
+                            d.setDate(d.getDate() - i);
+                            labels.push(d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'}));
+                        }
+
+                        // Colors for multiple datasets (High contrast Golds, Whites, Ambers)
+                        const colors = ['#fbbf24', '#ffffff', '#f59e0b', '#cbd5e1', '#fef08a'];
+
+                        const datasets = graphSelectedHabitIds.value
+                            .map(habitId => habits.value.find(h => h.id === habitId))
+                            .filter(Boolean) // Filter out any undefined/deleted habits safely
+                            .map((habitObj, index) => {
+                                const habitId = habitObj.id;
+                                const dataPoints = [];
+
+                                for (let i = daysToView - 1; i >= 0; i--) {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() - i);
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const dKey = `${year}-${month}-${day}`;
+
+                                    const val = habitEntries.value[dKey] && habitEntries.value[dKey][habitId];
+
+                                    if (val !== undefined && val !== '') {
+                                        dataPoints.push(habitObj.type === 'yesno' ? (val ? 1 : 0) : Number(val));
+                                    } else {
+                                        dataPoints.push(0);
+                                    }
+                                }
+
+                                const color = colors[index % colors.length];
+                                const isBar = habitObj.type === 'yesno';
+
+                                return {
+                                    label: habitObj.name || 'Habit',
+                                    data: dataPoints,
+                                    backgroundColor: isBar ? color : color + '80', // Solid color for bars to ensure high visibility
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    tension: 0.3,
+                                    fill: false,
+                                    type: isBar ? 'bar' : 'line'
+                                };
+                            });
+
+                        if (chartInstance) {
+                            chartInstance.destroy();
+                        }
+
+                        chartInstance = new Chart(canvasEl, {
+                            data: {
+                                labels: labels,
+                                datasets: datasets
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {
+                                    mode: 'index',
+                                    intersect: false,
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        grid: {color: 'rgba(255, 255, 255, 0.1)'},
+                                        ticks: {color: '#94a3b8'}
+                                    },
+                                    x: {
+                                        grid: {color: 'rgba(255, 255, 255, 0.1)'},
+                                        ticks: {color: '#94a3b8'}
+                                    }
+                                },
+                                plugins: {
+                                    legend: {
+                                        labels: {color: '#cbd5e1'}
+                                    }
+                                }
+                            }
+                        });
+                    });
+                };
+
+                watch([currentTab, graphSelectedHabitIds, graphTimeRange], () => {
+                    if (currentTab.value === 'analytics') {
+                        updateChart();
+                    }
+                }, {deep: true});
+
+                return {
+                    currentTab,
+                    authLoading,
+                    user,
+                    currentDate,
+                    formattedCurrentDate,
+                    changeDate,
+                    habits,
+                    showAddHabitModal,
+                    newHabit,
+                    createHabit,
+                    deleteHabit,
+                    getHabitValue,
+                    toggleHabitEntry,
+                    updateHabitValue,
+                    currentJournalText,
+                    journalSaved,
+                    debouncedSaveJournal,
+                    googleTasks,
+                    tasksLoading,
+                    newTaskTitle,
+                    fetchGoogleTasks,
+                    createGoogleTask,
+                    toggleTaskComplete,
+                    deleteGoogleTask,
+                    graphSelectedHabitIds,
+                    calendarSelectedHabitId,
+                    graphTimeRange,
+                    calendarOffset,
+                    calendarMonths,
+                    changeCalendarOffset,
+                    toggleGraphHabit,
+                    login,
+                    dismissAuthError,
+                    logout,
+                    authError
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
