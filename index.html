@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -1045,7 +1044,10 @@
                                     backgroundColor: isBar ? color : color + '80',
                                     borderColor: color,
                                     borderWidth: 2,
-                                    tension: 0.3,
+                                    tension: 0.4, // Increased tension for a smooth curve
+                                    pointRadius: 0, // Removes the dots
+                                    pointHitRadius: 10, // Keeps the hover area active
+                                    pointHoverRadius: 5, // Shows a dot only when hovered
                                     fill: false, 
                                     type: isBar ? 'bar' : 'line'
                                 };
