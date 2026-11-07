@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Tracker, To-Do & Journal</title>
+    <title>Habit Tracker & Journal</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -52,12 +52,10 @@
             color: #facc15 !important;
         }
 
-        /* Gold for main headings */
         .text-slate-800 {
             color: #fef08a !important;
         }
 
-        /* Lighter gold for subheadings */
         .text-slate-700,
         .text-slate-600 {
             color: #cccccc !important;
@@ -134,7 +132,7 @@
                     </div>
                     <div>
                         <h1 class="font-bold text-lg text-slate-900 leading-tight">LifePulse</h1>
-                        <p class="text-xs text-slate-500">Habits • Todos • Journal</p>
+                        <p class="text-xs text-slate-500">Habits & Journal</p>
                     </div>
                 </div>
 
@@ -183,8 +181,8 @@
                     <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl"></i>
                     <div>
                         <h3 class="font-semibold text-sm">Offline / Local Mode</h3>
-                        <p class="text-xs text-amber-700">Sign in with Google to sync your habits, journal entries, and
-                            Google Tasks across devices.</p>
+                        <p class="text-xs text-amber-700">Sign in with Google to sync your habits and journal entries
+                            across devices.</p>
                     </div>
                 </div>
                 <button @click="login"
@@ -205,19 +203,17 @@
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Habit Analytics</span>
                 </button>
-                <button @click="currentTab = 'todos'"
-                    :class="['pb-3 font-semibold text-sm border-b-2 transition flex items-center space-x-2', currentTab === 'todos' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700']">
-                    <i class="fa-solid fa-list-check"></i>
-                    <span>Google Tasks</span>
+                <button @click="currentTab = 'journal'"
+                    :class="['pb-3 font-semibold text-sm border-b-2 transition flex items-center space-x-2', currentTab === 'journal' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Journal History</span>
                 </button>
             </div>
 
-            <!-- TAB 1: DAILY DASHBOARD (Habits + Journal + Tasks overview) -->
-            <div v-if="currentTab === 'daily'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- TAB 1: DAILY DASHBOARD (Habits + Journal) -->
+            <div v-if="currentTab === 'daily'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                <!-- Left 2 Cols: Habits & Journal -->
-                <div class="lg:col-span-2 space-y-6">
-
+                <div class="space-y-6">
                     <!-- Date Navigator for Daily Dashboard -->
                     <div
                         class="flex items-center justify-between bg-white rounded-2xl shadow-xs border border-slate-200 p-4">
@@ -237,7 +233,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <h2 class="font-bold text-lg text-slate-900">Daily Habits</h2>
-                                <p class="text-xs text-slate-500">Track your daily routines and metrics</p>
+                                <p class="text-xs text-slate-500">Track your daily routines</p>
                             </div>
                             <button @click="showAddHabitModal = true"
                                 class="bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center space-x-1.5">
@@ -303,9 +299,11 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Journal Section -->
-                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
+                <!-- Right Col: Journal -->
+                <div class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 h-full flex flex-col">
                         <div class="flex items-center justify-between mb-3">
                             <div>
                                 <h2 class="font-bold text-lg text-slate-900">Daily Journal</h2>
@@ -318,70 +316,11 @@
                                 <span>Saved</span>
                             </span>
                         </div>
-                        <textarea v-model="currentJournalText" @input="debouncedSaveJournal" rows="4"
+                        <textarea v-model="currentJournalText" @input="debouncedSaveJournal"
                             placeholder="How was your day? Write your thoughts, gratitude, or events here..."
-                            class="w-full p-4 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-600 bg-slate-50/50 resize-none"></textarea>
+                            class="w-full flex-1 min-h-[300px] p-4 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-600 bg-slate-50/50 resize-none"></textarea>
                     </div>
                 </div>
-
-                <!-- Right Col: Mini Google Tasks Quick View -->
-                <div class="space-y-6">
-                    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h2 class="font-bold text-lg text-slate-900">Google Tasks</h2>
-                                <p class="text-xs text-slate-500">Synced with your Google account</p>
-                            </div>
-                            <button @click="fetchGoogleTasks"
-                                class="text-brand-600 hover:text-brand-700 text-xs font-semibold">
-                                <i class="fa-solid fa-rotate mr-1"></i> Refresh
-                            </button>
-                        </div>
-
-                        <div v-if="!user" class="text-center py-6 border border-slate-100 rounded-xl bg-slate-50 p-4">
-                            <i class="fa-brands fa-google text-slate-400 text-2xl mb-2"></i>
-                            <p class="text-xs text-slate-600 font-medium mb-3">Sign in with Google to view and manage
-                                your Google Tasks inside this app.</p>
-                            <button @click="login"
-                                class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-3 py-2 rounded-lg">
-                                Connect Google
-                            </button>
-                        </div>
-
-                        <div v-else>
-                            <div class="flex space-x-2 mb-4">
-                                <input type="text" v-model="newTaskTitle" @keyup.enter="createGoogleTask"
-                                    placeholder="Add a quick task..."
-                                    class="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-600">
-                                <button @click="createGoogleTask"
-                                    class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
-                                    <i class="fa-solid fa-plus"></i>
-                                </button>
-                            </div>
-
-                            <div v-if="tasksLoading" class="text-center py-6 text-slate-400 text-xs">
-                                <i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading tasks...
-                            </div>
-                            <div v-else-if="googleTasks.length === 0" class="text-center py-6 text-slate-400 text-xs">
-                                No active tasks found.
-                            </div>
-                            <div v-else class="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                                <div v-for="task in googleTasks" :key="task.id"
-                                    class="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition">
-                                    <label class="flex items-center space-x-3 cursor-pointer flex-1 mr-2">
-                                        <input type="checkbox" :checked="task.status === 'completed'"
-                                            @change="toggleTaskComplete(task)"
-                                            class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
-                                        <span
-                                            :class="['text-xs font-medium', task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-700']">{{
-                                            task.title }}</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
 
             <!-- TAB 2: ANALYTICS & HISTORY -->
@@ -403,18 +342,16 @@
                                 <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Trend Graph</h3>
 
                                 <div class="flex items-center space-x-2">
-                                    <div
-                                        class="flex items-center space-x-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-medium">
-                                        <button @click="graphTimeRange = 'weekly'; graphOffset = 0"
-                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'weekly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Week</button>
-                                        <button @click="graphTimeRange = 'monthly'; graphOffset = 0"
-                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'monthly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Month</button>
-                                        <button @click="graphTimeRange = 'halfyear'; graphOffset = 0"
-                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'halfyear' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">½
-                                            Year</button>
-                                        <button @click="graphTimeRange = 'yearly'; graphOffset = 0"
-                                            :class="['px-3 py-1.5 rounded-md transition', graphTimeRange === 'yearly' ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-50']">Year</button>
-                                    </div>
+                                    <!-- Time Range Dropdown -->
+                                    <select v-model="graphTimeRange" @change="graphOffset = 0"
+                                        class="bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:border-brand-500">
+                                        <option value="weekly">Week</option>
+                                        <option value="monthly">Month</option>
+                                        <option value="halfyear">½ Year</option>
+                                        <option value="yearly">Year</option>
+                                    </select>
+
+                                    <!-- Navigation Arrows -->
                                     <div class="flex items-center space-x-1">
                                         <button @click="changeGraphOffset(1)"
                                             class="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-sm text-slate-600"
@@ -434,14 +371,28 @@
                                 </div>
                             </div>
 
-                            <p class="text-xs text-slate-500 mb-3">Select one or multiple habits to compare:</p>
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                <button v-for="h in habits" :key="'graph_'+h.id" @click="toggleGraphHabit(h.id)"
-                                    :class="['px-3 py-1.5 rounded-xl text-xs font-semibold transition border', graphSelectedHabitIds.includes(h.id) ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300']">
+                            <p class="text-xs text-slate-500 mb-2">Select multiple habits to compare their trends:</p>
+
+                            <!-- Custom Multi-Select Graph Dropdown -->
+                            <div class="relative w-full max-w-xs mb-4">
+                                <div @click="showGraphDropdown = !showGraphDropdown"
+                                    class="bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:border-brand-500 cursor-pointer flex justify-between items-center">
+                                    <span class="truncate">{{ selectedGraphHabitsText }}</span>
                                     <i
-                                        :class="['mr-1', graphSelectedHabitIds.includes(h.id) ? 'fa-solid fa-check' : 'fa-solid fa-plus']"></i>
-                                    {{ h.name }}
-                                </button>
+                                        :class="['fa-solid transition-transform duration-200 text-slate-400', showGraphDropdown ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
+                                </div>
+
+                                <div v-if="showGraphDropdown"
+                                    class="absolute z-10 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl p-2 max-h-60 overflow-y-auto">
+                                    <div v-for="h in habits" :key="'graph_opt_'+h.id" @click="toggleGraphHabit(h.id)"
+                                        class="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition">
+                                        <div
+                                            :class="['w-4 h-4 rounded flex items-center justify-center border', graphSelectedHabitIds.includes(h.id) ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 text-transparent']">
+                                            <i class="fa-solid fa-check text-[10px]"></i>
+                                        </div>
+                                        <span class="text-sm font-medium text-slate-700">{{ h.name }}</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="h-72 relative bg-white p-3 rounded-xl border border-slate-200">
@@ -472,18 +423,20 @@
                                 </div>
                             </div>
 
-                            <p class="text-xs text-slate-500 mb-3">Select a Yes/No habit to view and toggle its calendar
+                            <p class="text-xs text-slate-500 mb-2">Select a Yes/No habit to view and toggle its calendar
                                 history:</p>
+
                             <div v-if="yesNoHabits.length === 0"
                                 class="text-xs text-slate-400 italic py-4 text-center border border-dashed border-slate-200 rounded-xl mb-4">
                                 No Yes/No habits available. Create a Yes/No habit to view its calendar grid.
                             </div>
-                            <div v-else class="flex space-x-2 overflow-x-auto pb-3 mb-4">
-                                <button v-for="h in yesNoHabits" :key="'cal_'+h.id"
-                                    @click="calendarSelectedHabitId = h.id"
-                                    :class="['px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap border', calendarSelectedHabitId === h.id ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50']">
-                                    {{ h.name }}
-                                </button>
+                            <div v-else>
+                                <!-- Calendar Habit Dropdown -->
+                                <select v-model="calendarSelectedHabitId"
+                                    class="w-full max-w-xs bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:border-brand-500 mb-4">
+                                    <option v-for="h in yesNoHabits" :key="'cal_opt_'+h.id" :value="h.id">{{ h.name }}
+                                    </option>
+                                </select>
                             </div>
 
                             <div v-if="yesNoHabits.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -493,6 +446,7 @@
                                         class="text-xs font-bold mb-3 text-center text-slate-900 uppercase tracking-widest">
                                         {{ month.name }}</h4>
                                     <div class="flex flex-wrap gap-1.5 justify-center">
+                                        <!-- Days in reverse order -->
                                         <div v-for="day in month.days" :key="day.dateStr"
                                             @click="toggleCalendarDay(day)"
                                             :class="['w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-[10px] sm:text-[9px] font-bold transition-all select-none', 
@@ -509,63 +463,29 @@
                 </div>
             </div>
 
-            <!-- TAB 3: GOOGLE TASKS FULL VIEW -->
-            <div v-if="currentTab === 'todos'" class="space-y-6">
+            <!-- TAB 3: JOURNAL HISTORY -->
+            <div v-if="currentTab === 'journal'" class="space-y-6">
                 <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 max-w-3xl mx-auto">
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 class="font-bold text-lg text-slate-900">Google Tasks Manager</h2>
-                            <p class="text-xs text-slate-500">Manage all your synced task lists directly</p>
-                        </div>
-                        <button @click="fetchGoogleTasks"
-                            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition">
-                            <i class="fa-solid fa-rotate mr-1"></i> Refresh Tasks
-                        </button>
+                    <div class="mb-6">
+                        <h2 class="font-bold text-lg text-slate-900">Journal History</h2>
+                        <p class="text-xs text-slate-500">Read through your past reflections and notes.</p>
                     </div>
 
-                    <div v-if="!user" class="text-center py-12 border border-slate-200 rounded-2xl bg-slate-50 p-6">
-                        <i class="fa-brands fa-google text-slate-400 text-3xl mb-3"></i>
-                        <h3 class="font-bold text-slate-700 text-sm mb-1">Google Authentication Required</h3>
-                        <p class="text-xs text-slate-500 mb-4">Please sign in with your Google account to access your
-                            Google Tasks.</p>
-                        <button @click="login"
-                            class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">
-                            Sign In with Google
-                        </button>
+                    <div v-if="sortedJournalEntries.length === 0"
+                        class="text-center py-12 border border-slate-200 rounded-2xl bg-slate-50 p-6">
+                        <i class="fa-solid fa-book-open text-slate-400 text-3xl mb-3"></i>
+                        <h3 class="font-bold text-slate-700 text-sm mb-1">No Journal Entries Found</h3>
+                        <p class="text-xs text-slate-500">Your journal history is currently empty. Start writing in the
+                            Daily Dashboard!</p>
                     </div>
 
                     <div v-else class="space-y-4">
-                        <div class="flex space-x-2">
-                            <input type="text" v-model="newTaskTitle" @keyup.enter="createGoogleTask"
-                                placeholder="What needs to be done?"
-                                class="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-600">
-                            <button @click="createGoogleTask"
-                                class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-xs">
-                                Add Task
-                            </button>
-                        </div>
-
-                        <div v-if="googleTasks.length === 0"
-                            class="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-2xl">
-                            No tasks found in your primary Google Task list.
-                        </div>
-
-                        <div v-else class="space-y-2">
-                            <div v-for="task in googleTasks" :key="task.id"
-                                class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 transition shadow-2xs">
-                                <label class="flex items-center space-x-3 cursor-pointer flex-1 mr-4">
-                                    <input type="checkbox" :checked="task.status === 'completed'"
-                                        @change="toggleTaskComplete(task)"
-                                        class="w-5 h-5 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
-                                    <span
-                                        :class="['text-sm font-medium', task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800']">{{
-                                        task.title }}</span>
-                                </label>
-                                <button @click="deleteGoogleTask(task.id)"
-                                    class="text-slate-400 hover:text-red-600 p-2 transition">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
+                        <div v-for="entry in sortedJournalEntries" :key="entry.date"
+                            class="p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white transition shadow-2xs">
+                            <h4
+                                class="text-xs font-bold text-brand-600 mb-3 border-b border-slate-200 pb-2 uppercase tracking-wider">
+                                {{ entry.formattedDate }}</h4>
+                            <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{{ entry.text }}</p>
                         </div>
                     </div>
                 </div>
@@ -704,9 +624,7 @@
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
-
             googleProvider = new GoogleAuthProvider();
-            googleProvider.addScope('https://www.googleapis.com/auth/tasks');
         }
 
         const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
@@ -716,13 +634,6 @@
                 const currentTab = ref('daily');
                 const authLoading = ref(true);
                 const user = ref(null);
-
-                const googleAccessToken = ref(null);
-                try {
-                    googleAccessToken.value = localStorage.getItem('lifepulse_g_token') || null;
-                } catch (e) {
-                    console.warn("Local storage is restricted.");
-                }
 
                 const currentDate = ref(new Date());
                 const formattedCurrentDate = computed(() => {
@@ -744,6 +655,8 @@
 
                 const habits = ref([]);
                 const habitEntries = ref({});
+                const journalEntries = ref({}); // Stores historical journals
+
                 const showAddHabitModal = ref(false);
                 const newHabit = ref({ name: '', type: 'yesno', isBadHabit: false });
 
@@ -752,7 +665,28 @@
 
                 const yesNoHabits = computed(() => habits.value.filter(h => h.type === 'yesno'));
 
+                // Analytics Graph Refs
+                const showGraphDropdown = ref(false);
                 const graphSelectedHabitIds = ref([]);
+
+                const selectedGraphHabitsText = computed(() => {
+                    if (graphSelectedHabitIds.value.length === 0) return 'Select habits...';
+                    if (graphSelectedHabitIds.value.length === 1) {
+                        const h = habits.value.find(h => h.id === graphSelectedHabitIds.value[0]);
+                        return h ? h.name : 'Select habits...';
+                    }
+                    return `${graphSelectedHabitIds.value.length} habits selected`;
+                });
+
+                const toggleGraphHabit = (id) => {
+                    const idx = graphSelectedHabitIds.value.indexOf(id);
+                    if (idx > -1) {
+                        graphSelectedHabitIds.value.splice(idx, 1);
+                    } else {
+                        graphSelectedHabitIds.value.push(id);
+                    }
+                };
+
                 const calendarSelectedHabitId = ref(null);
                 const selectedCalendarHabit = computed(() => {
                     return yesNoHabits.value.find(h => h.id === calendarSelectedHabitId.value) || yesNoHabits.value[0] || null;
@@ -765,7 +699,7 @@
                     graphOffset.value = Math.max(0, graphOffset.value + direction);
                 };
 
-                // Auto-select first available Yes/No habit when list changes
+                // Auto-select first available Yes/No habit for calendar when list changes
                 watch(yesNoHabits, (newYesNo) => {
                     if (newYesNo.length > 0) {
                         if (!calendarSelectedHabitId.value || !newYesNo.some(h => h.id === calendarSelectedHabitId.value)) {
@@ -780,9 +714,6 @@
                 const journalSaved = ref(false);
                 let journalSaveTimeout = null;
 
-                const googleTasks = ref([]);
-                const tasksLoading = ref(false);
-                const newTaskTitle = ref('');
                 const authError = ref('');
 
                 let chartInstance = null;
@@ -794,12 +725,7 @@
                             authLoading.value = false;
                             if (u && !u.isAnonymous) {
                                 loadUserData();
-                                if (googleAccessToken.value) {
-                                    fetchGoogleTasks();
-                                }
                             } else {
-                                try { localStorage.removeItem('lifepulse_g_token'); } catch (e) { }
-                                googleAccessToken.value = null;
                                 loadLocalFallbackData();
                             }
                         });
@@ -815,24 +741,11 @@
                     try {
                         await setPersistence(auth, browserLocalPersistence);
                         const result = await signInWithPopup(auth, googleProvider);
-                        const credential = GoogleAuthProvider.credentialFromResult(result);
-                        if (credential && credential.accessToken) {
-                            googleAccessToken.value = credential.accessToken;
-                            try { localStorage.setItem('lifepulse_g_token', credential.accessToken); } catch (e) { }
-                            fetchGoogleTasks();
-                        }
                         user.value = result.user;
                         loadUserData();
                     } catch (e) {
                         console.error('Google Sign-In failed:', e);
-                        if (e.code === 'auth/configuration-not-found') {
-                            authError.value = "Google Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method, and enable Google.";
-                        } else if (e.code === 'auth/unauthorized-domain') {
-                            const currentHostname = window.location.hostname;
-                            authError.value = `The current domain ("${currentHostname}") is not whitelisted in your Firebase project. Add it in Firebase Console -> Authentication -> Settings -> Authorized domains.`;
-                        } else {
-                            authError.value = "Authentication failed: " + e.message;
-                        }
+                        authError.value = "Authentication failed: " + e.message;
                     }
                 };
 
@@ -842,8 +755,6 @@
                     if (!auth) return;
                     await signOut(auth);
                     user.value = null;
-                    googleAccessToken.value = null;
-                    try { localStorage.removeItem('lifepulse_g_token'); } catch (e) { }
                     loadLocalFallbackData();
                 };
 
@@ -861,17 +772,21 @@
                             if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
                         }
 
-                        // Load all daily log documents from Firestore into memory for Analytics & Calendar Grid
+                        // Load all daily log documents from Firestore for Analytics & History
                         const logsRef = collection(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs');
                         const logsSnap = await getDocs(logsRef);
                         const allEntries = {};
+                        const allJournals = {};
+
                         logsSnap.forEach(docSnap => {
                             const data = docSnap.data();
-                            if (data && data.habits) {
-                                allEntries[docSnap.id] = data.habits;
+                            if (data) {
+                                if (data.habits) allEntries[docSnap.id] = data.habits;
+                                if (data.journal) allJournals[docSnap.id] = data.journal;
                             }
                         });
                         habitEntries.value = allEntries;
+                        journalEntries.value = allJournals;
 
                         loadDayData();
                     } catch (e) {
@@ -915,6 +830,9 @@
                         habits: habitEntries.value[dateKey.value] || {}
                     };
 
+                    // Immediately update local reference for Journal History tab mapping
+                    journalEntries.value[dateKey.value] = currentJournalText.value;
+
                     if (db && user.value && !user.value.isAnonymous) {
                         try {
                             const dayDocRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs', dateKey.value);
@@ -945,24 +863,27 @@
                             { id: 'headache', name: 'Headache', type: 'yesno', isBadHabit: true, order: 1 }
                         ];
                         graphSelectedHabitIds.value = ['sleep'];
-                        calendarSelectedHabitId.value = 'sleep';
+                        calendarSelectedHabitId.value = 'headache';
                     }
 
-                    // Read all local daily entries into habitEntries
+                    // Read all local daily entries into habitEntries and journalEntries
                     const allEntries = {};
+                    const allJournals = {};
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
                         if (key && key.startsWith('lifepulse_day_')) {
                             const dateStr = key.replace('lifepulse_day_', '');
                             try {
                                 const parsed = JSON.parse(localStorage.getItem(key));
-                                if (parsed && parsed.habits) {
-                                    allEntries[dateStr] = parsed.habits;
+                                if (parsed) {
+                                    if (parsed.habits) allEntries[dateStr] = parsed.habits;
+                                    if (parsed.journal) allJournals[dateStr] = parsed.journal;
                                 }
                             } catch (e) { }
                         }
                     }
                     habitEntries.value = allEntries;
+                    journalEntries.value = allJournals;
 
                     loadDayData();
                 };
@@ -1035,6 +956,8 @@
                 const deleteHabit = async (habitId) => {
                     habits.value = habits.value.filter(h => h.id !== habitId);
                     habits.value.forEach((h, i) => h.order = i);
+
+                    graphSelectedHabitIds.value = graphSelectedHabitIds.value.filter(id => id !== habitId);
 
                     if (db && user.value && !user.value.isAnonymous) {
                         try {
@@ -1112,81 +1035,19 @@
                     }, 800);
                 };
 
-                const fetchGoogleTasks = async () => {
-                    if (!googleAccessToken.value) return;
-                    tasksLoading.value = true;
-                    try {
-                        const res = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
-                            headers: { Authorization: `Bearer ${googleAccessToken.value}` }
+                const sortedJournalEntries = computed(() => {
+                    return Object.keys(journalEntries.value)
+                        .filter(date => journalEntries.value[date] && journalEntries.value[date].trim() !== '')
+                        .sort((a, b) => b.localeCompare(a)) // Sort by date descending
+                        .map(date => {
+                            const d = new Date(date);
+                            return {
+                                date: date,
+                                formattedDate: d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+                                text: journalEntries.value[date]
+                            };
                         });
-                        const data = await res.json();
-                        if (data.items) googleTasks.value = data.items;
-                    } catch (e) {
-                        console.error('Error fetching Google Tasks:', e);
-                    } finally {
-                        tasksLoading.value = false;
-                    }
-                };
-
-                const createGoogleTask = async () => {
-                    if (!newTaskTitle.value.trim()) return;
-                    const title = newTaskTitle.value;
-                    newTaskTitle.value = '';
-
-                    if (!googleAccessToken.value) {
-                        googleTasks.value.unshift({ id: 'local_' + Date.now(), title, status: 'needsAction' });
-                        return;
-                    }
-
-                    try {
-                        const res = await fetch('https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', {
-                            method: 'POST',
-                            headers: {
-                                Authorization: `Bearer ${googleAccessToken.value}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ title })
-                        });
-                        const newTask = await res.json();
-                        googleTasks.value.unshift(newTask);
-                    } catch (e) {
-                        console.error('Error creating task:', e);
-                    }
-                };
-
-                const toggleTaskComplete = async (task) => {
-                    const newStatus = task.status === 'completed' ? 'needsAction' : 'completed';
-                    task.status = newStatus;
-
-                    if (!googleAccessToken.value || task.id.startsWith('local_')) return;
-
-                    try {
-                        await fetch(`https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${task.id}`, {
-                            method: 'PATCH',
-                            headers: {
-                                Authorization: `Bearer ${googleAccessToken.value}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ status: newStatus })
-                        });
-                    } catch (e) {
-                        console.error('Error updating task:', e);
-                    }
-                };
-
-                const deleteGoogleTask = async (taskId) => {
-                    googleTasks.value = googleTasks.value.filter(t => t.id !== taskId);
-                    if (!googleAccessToken.value || taskId.startsWith('local_')) return;
-
-                    try {
-                        await fetch(`https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`, {
-                            method: 'DELETE',
-                            headers: { Authorization: `Bearer ${googleAccessToken.value}` }
-                        });
-                    } catch (e) {
-                        console.error('Error deleting task:', e);
-                    }
-                };
+                });
 
                 const calendarMonths = computed(() => {
                     const list = [];
@@ -1203,7 +1064,8 @@
                         const daysInMonth = new Date(year, month + 1, 0).getDate();
                         const days = [];
 
-                        for (let d = 1; d <= daysInMonth; d++) {
+                        // Generate dates in reverse (e.g. 31 down to 1)
+                        for (let d = daysInMonth; d >= 1; d--) {
                             const dateObj = new Date(year, month, d);
                             const dKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
@@ -1262,17 +1124,6 @@
                     updateChart();
                 };
 
-                const toggleGraphHabit = (habitId) => {
-                    const idx = graphSelectedHabitIds.value.indexOf(habitId);
-                    if (idx > -1) {
-                        if (graphSelectedHabitIds.value.length > 1) {
-                            graphSelectedHabitIds.value.splice(idx, 1);
-                        }
-                    } else {
-                        graphSelectedHabitIds.value.push(habitId);
-                    }
-                };
-
                 const updateChart = () => {
                     if (currentTab.value !== 'analytics') return;
                     nextTick(() => {
@@ -1293,11 +1144,11 @@
                             labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                         }
 
-                        // High-contrast popping colors for dark background (Gold, Electric Cyan, Emerald Green, Vivid Rose, Purple, Orange)
+                        // High-contrast popping colors for multiple habits overlay
                         const colors = ['#f59e0b', '#06b6d4', '#10b981', '#f43f5e', '#a855f7', '#f97316'];
 
                         const datasets = graphSelectedHabitIds.value
-                            .map(habitId => habits.value.find(h => h.id === habitId))
+                            .map(id => habits.value.find(h => h.id === id))
                             .filter(Boolean)
                             .map((habitObj, index) => {
                                 const habitId = habitObj.id;
@@ -1390,14 +1241,13 @@
                     currentJournalText,
                     journalSaved,
                     debouncedSaveJournal,
-                    googleTasks,
-                    tasksLoading,
-                    newTaskTitle,
-                    fetchGoogleTasks,
-                    createGoogleTask,
-                    toggleTaskComplete,
-                    deleteGoogleTask,
+                    sortedJournalEntries,
+
+                    showGraphDropdown,
                     graphSelectedHabitIds,
+                    selectedGraphHabitsText,
+                    toggleGraphHabit,
+
                     calendarSelectedHabitId,
                     selectedCalendarHabit,
                     toggleCalendarDay,
@@ -1407,7 +1257,6 @@
                     calendarOffset,
                     calendarMonths,
                     changeCalendarOffset,
-                    toggleGraphHabit,
                     login,
                     dismissAuthError,
                     logout,
