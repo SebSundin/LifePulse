@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -180,7 +181,7 @@
                                     <div :class="['w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm', habit.isBadHabit ? 'bg-red-900 text-brand-700' : 'bg-brand-100 text-brand-700']">
                                         <i :class="habit.type === 'value' ? 'fa-solid fa-chart-column' : 'fa-solid fa-check'"></i>
                                     </div>
-                                    <div>
+                                    <div class="cursor-pointer hover:text-brand-500 transition" @click="openHabitHistory(habit)">
                                         <h4 class="font-semibold text-slate-800 text-xs sm:text-sm">{{ habit.name }}</h4>
                                     </div>
                                 </div>
@@ -205,8 +206,13 @@
                                                class="w-14 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-600 text-center">
                                     </div>
 
+                                    <!-- History Habit Button -->
+                                    <button @click="openHabitHistory(habit)" class="text-slate-400 hover:text-brand-600 p-1.5 transition" title="View History">
+                                        <i class="fa-solid fa-calendar-days text-xs"></i>
+                                    </button>
+
                                     <!-- Edit Habit Button -->
-                                    <button @click="openEditModal(habit)" class="text-slate-400 hover:text-brand-600 p-1.5 transition">
+                                    <button @click="openEditModal(habit)" class="text-slate-400 hover:text-brand-600 p-1.5 transition" title="Edit Habit">
                                         <i class="fa-solid fa-pen-to-square text-xs"></i>
                                     </button>
                                 </div>
@@ -240,7 +246,7 @@
             <div v-if="currentTab === 'analytics'" class="space-y-6">
                 <div>
                     <h2 class="font-bold text-lg text-slate-900 mb-1">Habit Analytics & History</h2>
-                    <p class="text-xs text-slate-500">Analyze your habits over time and review your historical calendar grid.</p>
+                    <p class="text-xs text-slate-500">Analyze your habits over time.</p>
                 </div>
 
                 <div v-if="habits.length === 0" class="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-xs">
@@ -299,54 +305,6 @@
 
                         <div class="h-72 relative bg-slate-50/50 p-3 rounded-xl border border-slate-200">
                             <canvas id="habitChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- 2. CALENDAR GRID SECTION -->
-                    <div class="bg-white border border-slate-200 shadow-xs rounded-2xl p-5 sm:p-6">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">4-Month Calendar Grid</h3>
-                            
-                            <div class="flex items-center space-x-3">
-                                <button @click="changeCalendarOffset(1)" class="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-sm text-slate-600">
-                                    <i class="fa-solid fa-arrow-left"></i>
-                                </button>
-                                <span class="text-xs font-semibold text-slate-700 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
-                                    {{ calendarOffset === 0 ? 'Last 4 Months' : (calendarOffset * 4) + ' to ' + ((calendarOffset + 1) * 4) + ' Months Ago' }}
-                                </span>
-                                <button @click="changeCalendarOffset(-1)" :disabled="calendarOffset === 0" :class="['p-2 border rounded-lg transition shadow-sm', calendarOffset === 0 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100']">
-                                    <i class="fa-solid fa-arrow-right"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <p class="text-xs text-slate-500 mb-2">Select a Yes/No habit to view and toggle its calendar history:</p>
-                        
-                        <div v-if="yesNoHabits.length === 0" class="text-xs text-slate-400 italic py-4 text-center border border-dashed border-slate-200 rounded-xl mb-4 bg-slate-50/50">
-                            No Yes/No habits available. Create a Yes/No habit to view its calendar grid.
-                        </div>
-                        <div v-else>
-                            <!-- Calendar Habit Dropdown -->
-                            <select v-model="calendarSelectedHabitId" class="w-full max-w-xs bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:border-brand-500 mb-4">
-                                <option v-for="h in yesNoHabits" :key="'cal_opt_'+h.id" :value="h.id">{{ h.name }}</option>
-                            </select>
-                        </div>
-
-                        <div v-if="yesNoHabits.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="month in calendarMonths" :key="month.name" class="p-4 bg-slate-50/50 border border-slate-200 rounded-xl shadow-xs">
-                                <h4 class="text-xs font-bold mb-3 text-center text-slate-900 uppercase tracking-widest">{{ month.name }}</h4>
-                                <div class="flex flex-wrap gap-1.5 justify-center">
-                                    <!-- Days in reverse order -->
-                                    <div v-for="day in month.days" :key="day.dateStr" 
-                                         @click="toggleCalendarDay(day)"
-                                         :class="['w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-md text-[10px] sm:text-[9px] font-bold transition-all select-none', 
-                                                  day.isFuture ? 'opacity-10 bg-slate-200 cursor-not-allowed' : 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-brand-500',
-                                                  day.completed ? ((selectedCalendarHabit && selectedCalendarHabit.isBadHabit) ? 'bg-red-600 text-white shadow-xs' : 'bg-brand-500 text-black shadow-xs') : 'bg-white border border-slate-200 text-slate-400']"
-                                         :title="`${day.dateStr}${!day.isFuture ? ' (Click to toggle)' : ''}`">
-                                        {{ day.dayNum }}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -465,6 +423,75 @@
             </div>
         </div>
 
+        <!-- HABIT HISTORY MODAL (GRAPH & CALENDAR GRID) -->
+        <div v-if="showHabitHistoryModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-xl border border-slate-200 max-h-[95vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+                    <div>
+                        <h3 class="font-bold text-xl text-slate-900">{{ historySelectedHabit?.name }} - History</h3>
+                        <p class="text-xs text-slate-500 mt-1">
+                            <span v-if="historySelectedHabit?.type === 'yesno'">Click any past date in the calendar to toggle the habit state.</span>
+                            <span v-else>Hover over a highlighted date to see the logged value.</span>
+                        </p>
+                    </div>
+                    <button @click="showHabitHistoryModal = false" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- ACCUMULATION GRAPH SECTION -->
+                <div class="mb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Accumulation Graph</h3>
+                        
+                        <select v-model="historyAccumulationRange" @change="updateHistoryChart" class="bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:border-brand-500">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="h-56 relative bg-slate-50/50 p-3 rounded-xl border border-slate-200">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- CALENDAR GRID SECTION -->
+                <div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">4-Month Calendar Grid</h3>
+                        
+                        <div class="flex items-center space-x-3">
+                            <button @click="changeCalendarOffset(1)" class="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-sm text-slate-600">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <span class="text-xs font-semibold text-slate-700 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
+                                {{ calendarOffset === 0 ? 'Last 4 Months' : (calendarOffset * 4) + ' to ' + ((calendarOffset + 1) * 4) + ' Months Ago' }}
+                            </span>
+                            <button @click="changeCalendarOffset(-1)" :disabled="calendarOffset === 0" :class="['p-2 border rounded-lg transition shadow-sm', calendarOffset === 0 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100']">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div v-for="month in calendarMonths" :key="month.name" class="p-4 bg-slate-50/50 border border-slate-200 rounded-xl shadow-xs">
+                            <h4 class="text-xs font-bold mb-3 text-center text-slate-900 uppercase tracking-widest">{{ month.name }}</h4>
+                            <div class="flex flex-wrap gap-1.5 justify-center">
+                                <!-- Days in reverse order -->
+                                <div v-for="day in month.days" :key="day.dateStr" 
+                                     @click="toggleCalendarDay(day)"
+                                     :class="['w-7 h-7 flex items-center justify-center rounded-md text-[10px] font-bold transition-all select-none', 
+                                              day.isFuture ? 'opacity-10 bg-slate-200 cursor-not-allowed' : (historySelectedHabit?.type === 'yesno' ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-brand-500' : 'cursor-default'),
+                                              day.completed ? ((historySelectedHabit && historySelectedHabit.isBadHabit) ? 'bg-red-600 text-white shadow-xs' : 'bg-brand-500 text-black shadow-xs') : 'bg-white border border-slate-200 text-slate-400']"
+                                     :title="`${day.dateStr}${day.value !== undefined && historySelectedHabit?.type === 'value' ? '\nValue: ' + day.value : ''}${(!day.isFuture && historySelectedHabit?.type === 'yesno') ? '\nClick to toggle' : ''}`">
+                                    {{ day.dayNum }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Firebase SDK & App Logic -->
@@ -520,7 +547,7 @@
 
                 const habits = ref([]);
                 const habitEntries = ref({});
-                const journalEntries = ref({}); // Stores historical journals
+                const journalEntries = ref({}); 
                 
                 const showAddHabitModal = ref(false);
                 const newHabit = ref({ name: '', type: 'yesno', isBadHabit: false });
@@ -528,7 +555,125 @@
                 const showEditHabitModal = ref(false);
                 const editHabitData = ref({ id: '', name: '', type: 'yesno', isBadHabit: false });
 
-                const yesNoHabits = computed(() => habits.value.filter(h => h.type === 'yesno'));
+                // Habit History Modal State
+                const showHabitHistoryModal = ref(false);
+                const historySelectedHabit = ref(null);
+                const historyAccumulationRange = ref('monthly');
+                let historyChartInstance = null;
+
+                const openHabitHistory = (habit) => {
+                    historySelectedHabit.value = habit;
+                    showHabitHistoryModal.value = true;
+                    nextTick(() => {
+                        updateHistoryChart();
+                    });
+                };
+
+                const updateHistoryChart = () => {
+                    if (!showHabitHistoryModal.value) return;
+                    nextTick(() => {
+                        const canvasEl = document.getElementById('historyChart');
+                        if (!canvasEl) return;
+                        
+                        const habitObj = historySelectedHabit.value;
+                        if (!habitObj) return;
+
+                        const range = historyAccumulationRange.value;
+                        const buckets = [];
+                        const labels = [];
+                        
+                        // Helper to find the start of the week (Monday)
+                        const getMonday = (d) => {
+                          const date = new Date(d);
+                          const day = date.getDay();
+                          const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                          return new Date(date.setDate(diff));
+                        };
+                        
+                        if (range === 'monthly') {
+                            for (let i = 11; i >= 0; i--) {
+                                const d = new Date();
+                                d.setMonth(d.getMonth() - i);
+                                const monthYear = d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                                labels.push(monthYear);
+                                buckets.push({ month: d.getMonth(), year: d.getFullYear(), sum: 0 });
+                            }
+                        } else {
+                            for (let i = 11; i >= 0; i--) {
+                                const d = new Date();
+                                d.setDate(d.getDate() - (i * 7));
+                                const dStart = getMonday(d);
+                                const weekLabel = dStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                labels.push(weekLabel);
+                                
+                                const startObj = new Date(dStart).setHours(0,0,0,0);
+                                const dEnd = new Date(dStart);
+                                dEnd.setDate(dEnd.getDate() + 6);
+                                const endObj = dEnd.setHours(23,59,59,999);
+                                
+                                buckets.push({ start: startObj, end: endObj, sum: 0 });
+                            }
+                        }
+                        
+                        // Calculate Accumulations
+                        Object.keys(habitEntries.value).forEach(dateStr => {
+                           const val = habitEntries.value[dateStr][habitObj.id];
+                           if (val === undefined || val === '') return;
+                           
+                           const numVal = habitObj.type === 'yesno' ? (val ? 1 : 0) : Number(val);
+                           if (numVal === 0) return; 
+                           
+                           const entryDate = new Date(dateStr);
+                           
+                           if (range === 'monthly') {
+                               const m = entryDate.getMonth();
+                               const y = entryDate.getFullYear();
+                               const bIndex = buckets.findIndex(b => b.month === m && b.year === y);
+                               if (bIndex > -1) buckets[bIndex].sum += numVal;
+                           } else {
+                               const t = entryDate.getTime();
+                               const bIndex = buckets.findIndex(b => t >= b.start && t <= b.end);
+                               if (bIndex > -1) buckets[bIndex].sum += numVal;
+                           }
+                        });
+                        
+                        const dataPoints = buckets.map(b => Number(b.sum.toFixed(2))); 
+                        const barColor = habitObj.isBadHabit ? '#dc2626' : '#f59e0b'; // Red for bad, Gold for normal
+                        
+                        if (historyChartInstance) historyChartInstance.destroy();
+                        
+                        historyChartInstance = new Chart(canvasEl, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: `Accumulated ${habitObj.name}`,
+                                    data: dataPoints,
+                                    backgroundColor: barColor,
+                                    borderRadius: 4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: { 
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                        ticks: { color: '#94a3b8' }
+                                    },
+                                    x: {
+                                        grid: { display: false },
+                                        ticks: { color: '#94a3b8' }
+                                    }
+                                },
+                                plugins: {
+                                    legend: { display: false }
+                                }
+                            }
+                        });
+                    });
+                };
 
                 // Analytics Graph Refs
                 const showGraphDropdown = ref(false);
@@ -552,10 +697,6 @@
                     }
                 };
 
-                const calendarSelectedHabitId = ref(null);
-                const selectedCalendarHabit = computed(() => {
-                    return yesNoHabits.value.find(h => h.id === calendarSelectedHabitId.value) || yesNoHabits.value[0] || null;
-                });
                 const graphTimeRange = ref('monthly');
                 const graphOffset = ref(0);
                 const calendarOffset = ref(0);
@@ -563,17 +704,6 @@
                 const changeGraphOffset = (direction) => {
                     graphOffset.value = Math.max(0, graphOffset.value + direction);
                 };
-
-                // Auto-select first available Yes/No habit for calendar when list changes
-                watch(yesNoHabits, (newYesNo) => {
-                    if (newYesNo.length > 0) {
-                        if (!calendarSelectedHabitId.value || !newYesNo.some(h => h.id === calendarSelectedHabitId.value)) {
-                            calendarSelectedHabitId.value = newYesNo[0].id;
-                        }
-                    } else {
-                        calendarSelectedHabitId.value = null;
-                    }
-                }, { immediate: true });
 
                 const currentJournalText = ref('');
                 const journalSaved = ref(false);
@@ -634,7 +764,6 @@
 
                         if (habits.value.length > 0) {
                             if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
-                            if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
                         }
 
                         // Load all daily log documents from Firestore for Analytics & History
@@ -720,7 +849,6 @@
                         
                         if (habits.value.length > 0) {
                             if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habits.value[0].id];
-                            if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habits.value[0].id;
                         }
                     } else {
                         habits.value = [
@@ -728,7 +856,6 @@
                             { id: 'headache', name: 'Headache', type: 'yesno', isBadHabit: true, order: 1 }
                         ];
                         graphSelectedHabitIds.value = ['sleep'];
-                        calendarSelectedHabitId.value = 'headache';
                     }
 
                     // Read all local daily entries into habitEntries and journalEntries
@@ -780,7 +907,6 @@
                     }
 
                     if (graphSelectedHabitIds.value.length === 0) graphSelectedHabitIds.value = [habitId];
-                    if (!calendarSelectedHabitId.value) calendarSelectedHabitId.value = habitId;
                 };
 
                 const openEditModal = (habit) => {
@@ -823,6 +949,7 @@
                     habits.value.forEach((h, i) => h.order = i);
                     
                     graphSelectedHabitIds.value = graphSelectedHabitIds.value.filter(id => id !== habitId);
+                    if (historySelectedHabit.value?.id === habitId) showHabitHistoryModal.value = false;
                     
                     if (db && user.value && !user.value.isAnonymous) {
                         try {
@@ -879,6 +1006,9 @@
                     habitEntries.value[dateKey.value][habitId] = !currentVal;
                     saveCurrentDayData();
                     updateChart();
+                    if (showHabitHistoryModal.value && historySelectedHabit.value?.id === habitId) {
+                        updateHistoryChart();
+                    }
                 };
 
                 const updateHabitValue = (habitId, val) => {
@@ -888,6 +1018,9 @@
                     habitEntries.value[dateKey.value][habitId] = val === '' ? '' : Number(val);
                     saveCurrentDayData();
                     updateChart();
+                    if (showHabitHistoryModal.value && historySelectedHabit.value?.id === habitId) {
+                        updateHistoryChart();
+                    }
                 };
 
                 const debouncedSaveJournal = () => {
@@ -915,8 +1048,9 @@
                 });
 
                 const calendarMonths = computed(() => {
+                    if (!historySelectedHabit.value) return [];
                     const list = [];
-                    const habitId = calendarSelectedHabitId.value;
+                    const habitId = historySelectedHabit.value.id;
                     const offset = calendarOffset.value * 4; 
                     
                     const today = new Date();
@@ -956,8 +1090,8 @@
 
                 const toggleCalendarDay = async (day) => {
                     if (!day || day.isFuture) return;
-                    const habitObj = selectedCalendarHabit.value;
-                    if (!habitObj || habitObj.type !== 'yesno') return;
+                    const habitObj = historySelectedHabit.value;
+                    if (!habitObj || habitObj.type !== 'yesno') return; // Only allow yes/no toggling
 
                     const targetDateStr = day.dateStr;
                     const habitId = habitObj.id;
@@ -987,6 +1121,7 @@
                     }
 
                     updateChart();
+                    updateHistoryChart(); // Keep Accumulation Chart synced
                 };
 
                 const updateChart = () => {
@@ -1044,7 +1179,7 @@
                                     backgroundColor: isBar ? color : color + '80',
                                     borderColor: color,
                                     borderWidth: 2,
-                                    tension: 0.4, // Increased tension for a smooth curve
+                                    tension: 0.4, // Smooth curve
                                     pointRadius: 0, // Removes the dots
                                     pointHitRadius: 10, // Keeps the hover area active
                                     pointHoverRadius: 5, // Shows a dot only when hovered
@@ -1092,7 +1227,6 @@
                     formattedCurrentDate,
                     changeDate,
                     habits,
-                    yesNoHabits,
                     showAddHabitModal,
                     newHabit,
                     createHabit,
@@ -1103,6 +1237,13 @@
                     confirmDeleteFromEdit,
                     deleteHabit,
                     moveHabit,
+                    
+                    showHabitHistoryModal,
+                    historySelectedHabit,
+                    historyAccumulationRange,
+                    openHabitHistory,
+                    updateHistoryChart,
+
                     getHabitValue,
                     toggleHabitEntry,
                     updateHabitValue,
@@ -1116,8 +1257,6 @@
                     selectedGraphHabitsText,
                     toggleGraphHabit,
                     
-                    calendarSelectedHabitId,
-                    selectedCalendarHabit,
                     toggleCalendarDay,
                     graphTimeRange,
                     graphOffset,
