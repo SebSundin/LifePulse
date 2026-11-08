@@ -174,7 +174,7 @@
                                 <div class="flex items-center justify-between mb-4">
                                     <div>
                                         <p class="text-sm font-semibold text-slate-800">Enable Custom Reminders</p>
-                                        <p class="text-xs text-slate-500">Receive periodic device notifications.</p>
+                                        <p class="text-xs text-slate-500">Receive a daily device notification.</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" v-model="notificationSettings.enabled" @change="toggleNotifications" class="sr-only peer">
@@ -184,8 +184,8 @@
 
                                 <div v-if="notificationSettings.enabled" class="space-y-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Interval (Minutes)</label>
-                                        <input type="number" v-model="notificationSettings.intervalMinutes" @change="saveSettings" min="1" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
+                                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Time</label>
+                                        <input type="time" v-model="notificationSettings.targetTime" @change="saveSettings" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Message</label>
@@ -688,7 +688,7 @@
                 // Notifications / Settings State
                 const notificationSettings = ref({
                     enabled: false,
-                    intervalMinutes: 60,
+                    targetTime: '17:00',
                     message: 'Time to track your habits!'
                 });
 
@@ -714,8 +714,6 @@
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
                             notificationSettings.value.enabled = false;
-                        } else {
-                            localStorage.setItem('lifepulse_last_notif', Date.now().toString());
                         }
                     }
                     saveSettings();
@@ -731,26 +729,34 @@
                 onMounted(() => {
                     loadSettings();
                     
-                    // Notification Loop Check
+                    // Notification Checker (Checks time-of-day instead of elapsed interval)
                     setInterval(() => {
-                        if (!notificationSettings.value.enabled) return;
-                        const lastTime = parseInt(localStorage.getItem('lifepulse_last_notif') || '0', 10);
-                        const now = Date.now();
-                        const intervalMs = (notificationSettings.value.intervalMinutes || 60) * 60000;
-
-                        if (now - lastTime >= intervalMs) {
-                            if (Notification.permission === 'granted') {
-                                navigator.serviceWorker?.ready.then(registration => {
-                                    registration.showNotification('LifePulse', {
-                                        body: notificationSettings.value.message || 'Time to track your habits!',
-                                        icon: 'https://placehold.co/192x192/eab308/000000.png?text=LP',
-                                        badge: 'https://placehold.co/192x192/eab308/000000.png?text=LP'
+                        if (!notificationSettings.value.enabled || !notificationSettings.value.targetTime) return;
+                        
+                        const now = new Date();
+                        const currentHours = String(now.getHours()).padStart(2, '0');
+                        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+                        const currentTime = `${currentHours}:${currentMinutes}`;
+                        
+                        if (currentTime === notificationSettings.value.targetTime) {
+                            const todayStr = now.toLocaleDateString();
+                            const lastNotifDate = localStorage.getItem('lifepulse_last_notif_date');
+                            
+                            // Check if a notification was already sent today
+                            if (lastNotifDate !== todayStr) {
+                                if (Notification.permission === 'granted') {
+                                    navigator.serviceWorker?.ready.then(registration => {
+                                        registration.showNotification('LifePulse', {
+                                            body: notificationSettings.value.message || 'Time to track your habits!',
+                                            icon: 'https://placehold.co/192x192/eab308/000000.png?text=LP',
+                                            badge: 'https://placehold.co/192x192/eab308/000000.png?text=LP'
+                                        });
+                                    }).catch(() => {
+                                         new Notification('LifePulse', { body: notificationSettings.value.message || 'Time to track your habits!' });
                                     });
-                                }).catch(() => {
-                                     new Notification('LifePulse', { body: notificationSettings.value.message || 'Time to track your habits!' });
-                                });
+                                }
+                                localStorage.setItem('lifepulse_last_notif_date', todayStr);
                             }
-                            localStorage.setItem('lifepulse_last_notif', now.toString());
                         }
                     }, 30000); // Check every 30 seconds
 
