@@ -999,6 +999,12 @@
 
                 const isHabitFilled = (habitId) => {
                     const val = getHabitValue(habitId);
+                    const habit = habits.value.find(h => h.id === habitId);
+                    // For Yes/No habits, only treat them as visually "filled/completed" if the value is explicitly True ("Yes")
+                    if (habit && habit.type === 'yesno') {
+                        return val === true; 
+                    }
+                    // For Value habits, any logged number counts as filled
                     return val !== null && val !== undefined && val !== '';
                 };
 
