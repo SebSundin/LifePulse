@@ -174,7 +174,7 @@
                                 <div class="flex items-center justify-between mb-4">
                                     <div>
                                         <p class="text-sm font-semibold text-slate-800">Enable Custom Reminders</p>
-                                        <p class="text-xs text-slate-500">Receive a daily device notification.</p>
+                                        <p class="text-xs text-slate-500">Receive daily device notifications to track your habits.</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" v-model="notificationSettings.enabled" @change="toggleNotifications" class="sr-only peer">
@@ -182,15 +182,25 @@
                                     </label>
                                 </div>
 
-                                <div v-if="notificationSettings.enabled" class="space-y-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
-                                    <div>
-                                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Time</label>
-                                        <input type="time" v-model="notificationSettings.targetTime" @change="saveSettings" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
+                                <div v-if="notificationSettings.enabled" class="space-y-4">
+                                    <div v-for="(rem, index) in notificationSettings.reminders" :key="rem.id" class="relative bg-slate-50/50 p-4 rounded-xl border border-slate-200 group">
+                                        <button @click="removeReminder(index)" class="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-red-500 transition opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Delete Reminder">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                        <div class="mb-3 pr-8">
+                                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Time</label>
+                                            <input type="time" v-model="rem.time" @change="saveSettings" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Message</label>
+                                            <input type="text" v-model="rem.message" @change="saveSettings" placeholder="Time to track your habits!" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notification Message</label>
-                                        <input type="text" v-model="notificationSettings.message" @change="saveSettings" placeholder="Time to track your habits!" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-brand-600">
-                                    </div>
+                                    
+                                    <button @click="addReminder" class="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-brand-600 hover:bg-brand-50 transition flex items-center justify-center space-x-2">
+                                        <i class="fa-solid fa-plus"></i>
+                                        <span>Add Another Reminder</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -688,16 +698,52 @@
                 // Notifications / Settings State
                 const notificationSettings = ref({
                     enabled: false,
-                    targetTime: '17:00',
-                    message: 'Time to track your habits!'
+                    reminders: []
                 });
+
+                const addReminder = () => {
+                    notificationSettings.value.reminders.push({
+                        id: Date.now(),
+                        time: '12:00',
+                        message: 'Time to track your habits!'
+                    });
+                    saveSettings();
+                };
+
+                const removeReminder = (index) => {
+                    notificationSettings.value.reminders.splice(index, 1);
+                    saveSettings();
+                };
 
                 const loadSettings = () => {
                     const saved = localStorage.getItem('lifepulse_settings');
                     if (saved) {
                         try {
-                            notificationSettings.value = { ...notificationSettings.value, ...JSON.parse(saved) };
+                            const parsed = JSON.parse(saved);
+                            
+                            // Migrate old single-notification format if it exists
+                            if (!parsed.reminders && parsed.targetTime) {
+                                parsed.reminders = [{
+                                    id: Date.now(),
+                                    time: parsed.targetTime,
+                                    message: parsed.message || 'Time to track your habits!'
+                                }];
+                                delete parsed.targetTime;
+                                delete parsed.message;
+                            } else if (!parsed.reminders) {
+                                parsed.reminders = [];
+                            }
+                            
+                            notificationSettings.value = { ...notificationSettings.value, ...parsed };
                         } catch(e) {}
+                    }
+                    
+                    if (notificationSettings.value.reminders.length === 0) {
+                        notificationSettings.value.reminders.push({
+                            id: Date.now(),
+                            time: '17:00',
+                            message: 'Time to track your habits!'
+                        });
                     }
                 };
 
@@ -729,34 +775,49 @@
                 onMounted(() => {
                     loadSettings();
                     
-                    // Notification Checker (Checks time-of-day instead of elapsed interval)
+                    // Notification Checker (Supports Multiple Notifications)
                     setInterval(() => {
-                        if (!notificationSettings.value.enabled || !notificationSettings.value.targetTime) return;
+                        if (!notificationSettings.value.enabled || !notificationSettings.value.reminders.length) return;
                         
                         const now = new Date();
+                        const todayStr = now.toLocaleDateString();
                         const currentHours = String(now.getHours()).padStart(2, '0');
                         const currentMinutes = String(now.getMinutes()).padStart(2, '0');
                         const currentTime = `${currentHours}:${currentMinutes}`;
                         
-                        if (currentTime === notificationSettings.value.targetTime) {
-                            const todayStr = now.toLocaleDateString();
-                            const lastNotifDate = localStorage.getItem('lifepulse_last_notif_date');
-                            
-                            // Check if a notification was already sent today
-                            if (lastNotifDate !== todayStr) {
+                        let sentData = { date: '', sentIds: [] };
+                        try {
+                            const stored = localStorage.getItem('lifepulse_sent_notifs');
+                            if (stored) sentData = JSON.parse(stored);
+                        } catch(e) {}
+                        
+                        // Reset if it's a new day
+                        if (sentData.date !== todayStr) {
+                            sentData = { date: todayStr, sentIds: [] };
+                        }
+                        
+                        let stateChanged = false;
+                        
+                        notificationSettings.value.reminders.forEach(rem => {
+                            if (rem.time === currentTime && !sentData.sentIds.includes(rem.id)) {
                                 if (Notification.permission === 'granted') {
                                     navigator.serviceWorker?.ready.then(registration => {
                                         registration.showNotification('LifePulse', {
-                                            body: notificationSettings.value.message || 'Time to track your habits!',
+                                            body: rem.message || 'Time to track your habits!',
                                             icon: 'https://placehold.co/192x192/eab308/000000.png?text=LP',
                                             badge: 'https://placehold.co/192x192/eab308/000000.png?text=LP'
                                         });
                                     }).catch(() => {
-                                         new Notification('LifePulse', { body: notificationSettings.value.message || 'Time to track your habits!' });
+                                         new Notification('LifePulse', { body: rem.message || 'Time to track your habits!' });
                                     });
                                 }
-                                localStorage.setItem('lifepulse_last_notif_date', todayStr);
+                                sentData.sentIds.push(rem.id);
+                                stateChanged = true;
                             }
+                        });
+                        
+                        if (stateChanged) {
+                            localStorage.setItem('lifepulse_sent_notifs', JSON.stringify(sentData));
                         }
                     }, 30000); // Check every 30 seconds
 
@@ -1066,7 +1127,7 @@
                     graphTimeRange, graphOffset, changeGraphOffset, calendarOffset, calendarMonths, 
                     changeCalendarOffset, login, dismissAuthError, logout, authError,
                     journalSearchQuery, journalStartDate, journalEndDate, filteredJournalEntries,
-                    notificationSettings, toggleNotifications, saveSettings
+                    notificationSettings, toggleNotifications, saveSettings, addReminder, removeReminder
                 };
             }
         }).mount('#app');
