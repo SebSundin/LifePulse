@@ -174,7 +174,7 @@
                                 <div class="flex items-center justify-between mb-4">
                                     <div>
                                         <p class="text-sm font-semibold text-slate-800">Enable Custom Reminders</p>
-                                        <p class="text-xs text-slate-500">Receive daily device notifications to track your habits.</p>
+                                        <p class="text-xs text-slate-500">Receive daily device notifications. <span class="font-semibold text-amber-600">Note: Keep the app open in a tab to receive them.</span></p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" v-model="notificationSettings.enabled" @change="toggleNotifications" class="sr-only peer">
@@ -775,15 +775,13 @@
                 onMounted(() => {
                     loadSettings();
                     
-                    // Notification Checker (Supports Multiple Notifications)
+                    // Notification Checker (Supports Multiple Notifications & Background Throttling)
                     setInterval(() => {
                         if (!notificationSettings.value.enabled || !notificationSettings.value.reminders.length) return;
                         
                         const now = new Date();
                         const todayStr = now.toLocaleDateString();
-                        const currentHours = String(now.getHours()).padStart(2, '0');
-                        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-                        const currentTime = `${currentHours}:${currentMinutes}`;
+                        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
                         
                         let sentData = { date: '', sentIds: [] };
                         try {
@@ -799,17 +797,35 @@
                         let stateChanged = false;
                         
                         notificationSettings.value.reminders.forEach(rem => {
-                            if (rem.time === currentTime && !sentData.sentIds.includes(rem.id)) {
-                                if (Notification.permission === 'granted') {
-                                    navigator.serviceWorker?.ready.then(registration => {
-                                        registration.showNotification('LifePulse', {
+                            if (!rem.time) return;
+                            const [remHours, remMinutes] = rem.time.split(':').map(Number);
+                            const remTotalMinutes = remHours * 60 + remMinutes;
+                            
+                            // Check if current time is past the target reminder time
+                            if (currentTotalMinutes >= remTotalMinutes && !sentData.sentIds.includes(rem.id)) {
+                                // Only fire if we are within a 2-hour window of the target time
+                                // (Prevents blasting all morning notifications if the app is opened late at night)
+                                if (currentTotalMinutes <= remTotalMinutes + 120) {
+                                    if (Notification.permission === 'granted') {
+                                        const title = 'LifePulse';
+                                        const options = {
                                             body: rem.message || 'Time to track your habits!',
                                             icon: 'https://placehold.co/192x192/eab308/000000.png?text=LP',
                                             badge: 'https://placehold.co/192x192/eab308/000000.png?text=LP'
-                                        });
-                                    }).catch(() => {
-                                         new Notification('LifePulse', { body: rem.message || 'Time to track your habits!' });
-                                    });
+                                        };
+                                        
+                                        if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                                            navigator.serviceWorker.ready.then(registration => {
+                                                if (registration && typeof registration.showNotification === 'function') {
+                                                    registration.showNotification(title, options);
+                                                } else {
+                                                    new Notification(title, options);
+                                                }
+                                            }).catch(() => new Notification(title, options));
+                                        } else {
+                                            new Notification(title, options);
+                                        }
+                                    }
                                 }
                                 sentData.sentIds.push(rem.id);
                                 stateChanged = true;
@@ -819,7 +835,7 @@
                         if (stateChanged) {
                             localStorage.setItem('lifepulse_sent_notifs', JSON.stringify(sentData));
                         }
-                    }, 30000); // Check every 30 seconds
+                    }, 10000); // Check every 10 seconds to catch throttled background wakeups
 
                     if (auth) {
                         onAuthStateChanged(auth, async (u) => {
