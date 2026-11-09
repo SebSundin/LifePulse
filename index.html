@@ -37,6 +37,8 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -262,7 +264,7 @@
                                     <div class="flex items-center space-x-1.5 sm:space-x-2">
                                         <!-- Yes/No Habit Toggle (Yes / No) -->
                                         <button v-if="habit.type === 'yesno'" 
-                                                @click="toggleHabitEntry(habit.id)" 
+                                                @click="toggleHabitEntry(habit.id, $event)" 
                                                 :class="['px-3 py-1.5 rounded-lg font-semibold text-xs transition flex items-center justify-center space-x-1.5 w-16 shadow-xs', 
                                                          getHabitValue(habit.id) === true ? (habit.isBadHabit ? 'bg-red-600 text-white' : 'bg-brand-600 text-white') : 'bg-slate-700 text-white hover:bg-slate-600']">
                                             <i :class="getHabitValue(habit.id) === true ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off'"></i>
@@ -271,7 +273,7 @@
                                         
                                         <!-- Value Habit Input -->
                                         <div v-else class="flex items-center space-x-1.5">
-                                            <input type="number" step="any" :value="getHabitValue(habit.id)" @change="updateHabitValue(habit.id, $event.target.value)" placeholder="-" 
+                                            <input type="number" step="any" :value="getHabitValue(habit.id)" @change="updateHabitValue(habit.id, $event.target.value, $event)" placeholder="-" 
                                                    :class="['w-14 px-2 py-1 border rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-600 text-center transition', 
                                                             isHabitFilled(habit.id) ? 'bg-transparent border-slate-600 text-brand-500' : 'bg-white border-slate-300']">
                                         </div>
@@ -467,7 +469,7 @@
                         <div v-for="month in calendarMonths" :key="month.name" class="p-3 bg-slate-50/50 border border-slate-200 rounded-xl">
                             <h4 class="text-[10px] font-bold mb-2 text-center uppercase">{{ month.name }}</h4>
                             <div class="flex flex-wrap gap-1 justify-center">
-                                <div v-for="day in month.days" :key="day.dateStr" @click="toggleCalendarDay(day)" :class="['w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md text-[9px] sm:text-[10px] font-bold', day.isFuture ? 'opacity-10 bg-slate-200' : (historySelectedHabit?.type === 'yesno' ? 'cursor-pointer hover:scale-110' : ''), day.completed ? ((historySelectedHabit?.isBadHabit) ? 'bg-red-600 text-white' : 'bg-brand-500 text-black') : 'bg-white border border-slate-200 text-slate-400']">{{ day.dayNum }}</div>
+                                <div v-for="day in month.days" :key="day.dateStr" @click="toggleCalendarDay(day, $event)" :class="['w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md text-[9px] sm:text-[10px] font-bold', day.isFuture ? 'opacity-10 bg-slate-200' : (historySelectedHabit?.type === 'yesno' ? 'cursor-pointer hover:scale-110' : ''), day.completed ? ((historySelectedHabit?.isBadHabit) ? 'bg-red-600 text-white' : 'bg-brand-500 text-black') : 'bg-white border border-slate-200 text-slate-400']">{{ day.dayNum }}</div>
                             </div>
                         </div>
                     </div>
@@ -599,6 +601,27 @@
                 const historySelectedHabit = ref(null);
                 const historyAccumulationRange = ref('weekly');
                 let historyChartInstance = null;
+
+                // Confetti Animation Trigger
+                const fireConfetti = (e) => {
+                    if (typeof confetti === 'undefined') return;
+                    let x = 0.5, y = 0.5;
+                    if (e && e.clientX && e.clientY) {
+                        x = e.clientX / window.innerWidth;
+                        y = e.clientY / window.innerHeight;
+                    } else if (e && e.touches && e.touches.length > 0) {
+                        x = e.touches[0].clientX / window.innerWidth;
+                        y = e.touches[0].clientY / window.innerHeight;
+                    }
+                    confetti({
+                        particleCount: 45,
+                        spread: 55,
+                        origin: { x, y },
+                        colors: ['#facc15', '#eab308', '#ca8a04', '#ffffff'],
+                        zIndex: 9999,
+                        disableForReducedMotion: true
+                    });
+                };
 
                 const openHabitHistory = (habit) => {
                     historySelectedHabit.value = habit;
@@ -1000,28 +1023,40 @@
                 const isHabitFilled = (habitId) => {
                     const val = getHabitValue(habitId);
                     const habit = habits.value.find(h => h.id === habitId);
-                    // For Yes/No habits, only treat them as visually "filled/completed" if the value is explicitly True ("Yes")
                     if (habit && habit.type === 'yesno') {
                         return val === true; 
                     }
-                    // For Value habits, any logged number counts as filled
                     return val !== null && val !== undefined && val !== '';
                 };
 
-                // Cycle logic: strictly 2-way True <-> False/Null
-                const toggleHabitEntry = (habitId) => {
+                const toggleHabitEntry = (habitId, event) => {
                     if (!habitEntries.value[dateKey.value]) habitEntries.value[dateKey.value] = {};
                     const currentVal = habitEntries.value[dateKey.value][habitId];
+                    const newVal = currentVal === true ? false : true;
                     
-                    habitEntries.value[dateKey.value][habitId] = currentVal === true ? false : true;
+                    habitEntries.value[dateKey.value][habitId] = newVal;
+                    
+                    const habit = habits.value.find(h => h.id === habitId);
+                    if (newVal === true && habit && !habit.isBadHabit) {
+                        fireConfetti(event);
+                    }
                     
                     saveCurrentDayData(); updateChart();
                     if (showHabitHistoryModal.value && historySelectedHabit.value?.id === habitId) updateHistoryChart();
                 };
 
-                const updateHabitValue = (habitId, val) => {
+                const updateHabitValue = (habitId, val, event) => {
                     if (!habitEntries.value[dateKey.value]) habitEntries.value[dateKey.value] = {};
-                    habitEntries.value[dateKey.value][habitId] = val === '' ? '' : Number(val);
+                    const currentVal = habitEntries.value[dateKey.value][habitId];
+                    const newVal = val === '' ? '' : Number(val);
+                    
+                    habitEntries.value[dateKey.value][habitId] = newVal;
+                    
+                    const habit = habits.value.find(h => h.id === habitId);
+                    if ((currentVal === undefined || currentVal === null || currentVal === '') && newVal !== '' && habit && !habit.isBadHabit) {
+                        fireConfetti(event);
+                    }
+
                     saveCurrentDayData(); updateChart();
                     if (showHabitHistoryModal.value && historySelectedHabit.value?.id === habitId) updateHistoryChart();
                 };
@@ -1079,12 +1114,17 @@
 
                 const changeCalendarOffset = (dir) => calendarOffset.value = Math.max(0, calendarOffset.value + dir);
                 
-                const toggleCalendarDay = async (day) => {
+                const toggleCalendarDay = async (day, event) => {
                     if (!day || day.isFuture || historySelectedHabit.value?.type !== 'yesno') return;
                     if (!habitEntries.value[day.dateStr]) habitEntries.value[day.dateStr] = {};
                     
                     const currentVal = habitEntries.value[day.dateStr][historySelectedHabit.value.id];
-                    habitEntries.value[day.dateStr][historySelectedHabit.value.id] = currentVal === true ? false : true;
+                    const newVal = currentVal === true ? false : true;
+                    habitEntries.value[day.dateStr][historySelectedHabit.value.id] = newVal;
+
+                    if (newVal === true && historySelectedHabit.value && !historySelectedHabit.value.isBadHabit) {
+                        fireConfetti(event);
+                    }
 
                     const dayData = { habits: habitEntries.value[day.dateStr] || {} };
                     if (db && user.value && !user.value.isAnonymous) await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'daily_logs', day.dateStr), dayData, { merge: true });
