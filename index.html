@@ -458,18 +458,39 @@
 
                 <div>
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-xs font-bold uppercase tracking-wider hidden sm:block">4-Month Calendar</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider hidden sm:block">Calendar Grid</h3>
                         <div class="flex items-center space-x-2">
                             <button @click="changeCalendarOffset(1)" class="p-1.5 bg-white border border-slate-200 rounded text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
                             <span class="text-[10px] sm:text-xs font-semibold">{{ calendarOffset === 0 ? 'Last 4 Months' : (calendarOffset * 4) + ' to ' + ((calendarOffset + 1) * 4) + ' Months Ago' }}</span>
                             <button @click="changeCalendarOffset(-1)" :disabled="calendarOffset === 0" :class="['p-1.5 border border-slate-200 rounded', calendarOffset === 0 ? 'opacity-50' : '']"><i class="fa-solid fa-arrow-right"></i></button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div v-for="month in calendarMonths" :key="month.name" class="p-3 bg-slate-50/50 border border-slate-200 rounded-xl">
-                            <h4 class="text-[10px] font-bold mb-2 text-center uppercase">{{ month.name }}</h4>
-                            <div class="flex flex-wrap gap-1 justify-center">
-                                <div v-for="day in month.days" :key="day.dateStr" @click="toggleCalendarDay(day, $event)" :class="['w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md text-[9px] sm:text-[10px] font-bold', day.isFuture ? 'opacity-10 bg-slate-200' : (historySelectedHabit?.type === 'yesno' ? 'cursor-pointer hover:scale-110' : ''), day.completed ? ((historySelectedHabit?.isBadHabit) ? 'bg-red-600 text-white' : 'bg-brand-500 text-black') : 'bg-white border border-slate-200 text-slate-400']">{{ day.dayNum }}</div>
+                    <div class="flex flex-col space-y-3">
+                        <div v-for="month in calendarMonths" :key="month.name" class="flex flex-col sm:flex-row bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                            <div class="bg-slate-100/50 sm:w-28 shrink-0 flex items-center justify-center sm:justify-start p-3 sm:border-r border-slate-200">
+                                <h4 class="text-[11px] sm:text-[12px] font-bold text-center sm:text-left uppercase tracking-widest text-slate-600">{{ month.name }}</h4>
+                            </div>
+                            <div class="flex-1 p-3">
+                                <div class="grid grid-cols-7 gap-1 mb-1.5 text-center">
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">MON</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">TUE</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">WED</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">THU</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">FRI</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">SAT</span>
+                                    <span class="text-[8px] sm:text-[9px] font-bold text-slate-400">SUN</span>
+                                </div>
+                                <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
+                                    <div v-for="n in month.emptyDaysStart" :key="'empty'+n"></div>
+                                    <div v-for="day in month.days" :key="day.dateStr" 
+                                         @click="toggleCalendarDay(day, $event)" 
+                                         :class="['aspect-square flex items-center justify-center rounded-md text-[10px] sm:text-[11px] font-bold transition-all', 
+                                                  day.isFuture ? 'opacity-10 bg-slate-200' : (historySelectedHabit?.type === 'yesno' ? 'cursor-pointer hover:scale-110' : ''), 
+                                                  day.completed ? ((historySelectedHabit?.isBadHabit) ? 'bg-red-600 text-white shadow-xs' : 'bg-brand-500 text-black shadow-xs') : 'bg-white border border-slate-200 text-slate-400']"
+                                         :title="day.value ? 'Value: ' + day.value : ''">
+                                        {{ day.dayNum }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1097,17 +1118,39 @@
 
                 const calendarMonths = computed(() => {
                     if (!historySelectedHabit.value) return [];
-                    const list = [], habitId = historySelectedHabit.value.id, offset = calendarOffset.value * 4, today = new Date();
+                    const list = [];
+                    const habitId = historySelectedHabit.value.id;
+                    const offset = calendarOffset.value * 4;
+                    const today = new Date();
+                    
                     for (let i = 0; i < 4; i++) {
                         const targetDate = new Date(today.getFullYear(), today.getMonth() - offset - i, 1);
-                        const year = targetDate.getFullYear(), month = targetDate.getMonth(), daysInMonth = new Date(year, month + 1, 0).getDate();
+                        const year = targetDate.getFullYear();
+                        const month = targetDate.getMonth();
+                        const daysInMonth = new Date(year, month + 1, 0).getDate();
+                        
+                        // 0 = Sunday, 1 = Monday. Offset for a Monday-starting week
+                        const firstDayOfWeek = new Date(year, month, 1).getDay();
+                        const emptyDaysStart = (firstDayOfWeek + 6) % 7; 
+                        
                         const days = [];
-                        for (let d = daysInMonth; d >= 1; d--) {
+                        for (let d = 1; d <= daysInMonth; d++) {
                             const dKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                             const val = habitEntries.value[dKey]?.[habitId];
-                            days.push({ dateStr: dKey, dayNum: d, value: val, completed: val === true || val > 0, isFuture: new Date(year, month, d) > today });
+                            days.push({ 
+                                dateStr: dKey, 
+                                dayNum: d, 
+                                value: val, 
+                                completed: val === true || Number(val) > 0, 
+                                isFuture: new Date(year, month, d) > today 
+                            });
                         }
-                        list.push({ name: targetDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), days });
+                        
+                        list.push({ 
+                            name: targetDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }), 
+                            emptyDaysStart,
+                            days 
+                        });
                     }
                     return list;
                 });
